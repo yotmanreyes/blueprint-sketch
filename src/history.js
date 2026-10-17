@@ -18,6 +18,7 @@ const History=(()=>{
         index=stack.length-1;
         return true;
       },
+      peek:()=>index>=0?stack[index]:null,
       canUndo:()=>index>0,
       canRedo:()=>index>=0&&index<stack.length-1,
       undo(){if(index<=0)return null;index--;return JSON.parse(stack[index]);},

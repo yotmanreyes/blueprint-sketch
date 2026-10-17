@@ -224,7 +224,14 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 .plan .open span{display:grid;min-width:0}
 .plan .open b{font-size:.82rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .plan .open small{font-family:var(--mono);color:var(--muted);font-size:.65rem}
-.plan .confirm{grid-column:1/-1;display:flex;gap:6px;align-items:center}
+.plan .confirm{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.plan.ver{grid-template-columns:1fr 1fr auto}
+.plan.ver .open{grid-column:1/-1}
+.plan.ver .open small.d{color:var(--ink);opacity:.75;white-space:normal}
+.plan.ver .open .kind{color:var(--accent)}
+.plan .rename{grid-column:1/-1;display:flex;gap:6px}
+.plan .rename input{flex:1;min-width:0}
+.vfilters{display:flex;gap:4px;flex-wrap:wrap}
 </style>
 
 <div class="wrap">
@@ -276,6 +283,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
       <div class="pane" id="p-ia" hidden></div>
       <div class="pane" id="p-cantidades" hidden></div>
       <div class="pane" id="p-planos" hidden></div>
+      <div class="pane" id="p-versiones" hidden></div>
       <div class="pane" style="border-top:1px solid var(--line);max-height:none">
         <div class="foot"><button class="btn" id="copy">Copiar diseño</button><button class="btn" id="reset">Restablecer</button><span id="toast"></span></div>
         <div id="resetConfirm" hidden class="foot"><span class="note">¿Borrar todos los cambios?</span><button class="btn on" id="resetYes">Sí, restablecer</button><button class="btn" id="resetNo">Cancelar</button></div>
@@ -292,6 +300,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
       <button role="tab" data-t="ia" aria-selected="false" title="Asistente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.800 5.200L19 10l-5.200 1.800L12 17l-1.800-5.200L5 10l5.200-1.800zM19 16l.8 2.200L22 19l-2.200.8L19 22l-.8-2.200L16 19l2.200-.8z"/></svg><span>Asistente</span></button>
       <button role="tab" data-t="cantidades" aria-selected="false" title="Cantidades"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M8 15h2M12 15h2M8 18h8"/></svg><span>Cantidades</span></button>
       <button role="tab" data-t="planos" aria-selected="false" title="Planos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Planos</span></button>
+      <button role="tab" data-t="versiones" aria-selected="false" title="Versiones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Versiones</span></button>
     </div>
   </aside>
 
@@ -327,6 +336,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 <script src="plan-store.js"></script>
 <script src="sharing.js"></script>
 <script src="history.js"></script>
+<script src="versions.js"></script>
 <script src="drawing.js"></script>
 <script src="export.js"></script>
 <script src="quantities.js"></script>
@@ -495,8 +505,26 @@ syncCustomLib();
 const planHistory=History.create();
 let restoring=false;
 planHistory.reset(state);
+const versions=Versions.create({getItem:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},setItem:(k,v)=>localStorage.setItem(k,v)});
+const versionKey=()=>REMOTE_ID?'r:'+REMOTE_ID:plans.active.id;
+const isBlankState=s=>Levels.list(s).every(l=>Layout.isEmpty(l.layout)&&!l.items.length);
+function addVersion(snapshot,kind,label){
+  const added=versions.add(versionKey(),{state:snapshot,kind,label,thumb:REMOTE_ID?null:plans.active.thumb});
+  if(added&&tab==='versiones')renderVersiones();
+  return added;
+}
+// a checkpoint of the plan as it was before the edit that just happened, at most one every few minutes
+function checkpointIfDue(beforeJson,label='Punto automático'){
+  if(!beforeJson||isReadOnly()||Date.now()-versions.lastAutoAt(versionKey())<Versions.AUTO_EVERY)return;
+  const snapshot=JSON.parse(beforeJson);
+  if(!isBlankState(normalizeState(snapshot)))addVersion(snapshot,'auto',label);
+}
 function save(){
-  if(!restoring){planHistory.record(state);syncUndoUI();}
+  if(!restoring){
+    const before=planHistory.peek();
+    if(planHistory.record(state))checkpointIfDue(before);
+    syncUndoUI();
+  }
   if(REMOTE_ID){if(remote)remote.queueSave();return;}
   if(!plans.save(state))showToast('No se pudo guardar: el almacenamiento del navegador está lleno. Exporta el plano a un archivo.');
   clearTimeout(thumbTimer);thumbTimer=setTimeout(captureThumb,900);
@@ -1585,7 +1613,7 @@ function renderVanos(){
   }
 }
 const planIsBlank=()=>Levels.list(state).every(l=>Layout.isEmpty(l.layout)&&!l.items.length);
-const RENDER={ia:renderAsistente,capas:renderCapas,niveles:renderNiveles,estilo:renderStyle,muebles:renderMuebles,paredes:renderWalls,pisos:renderPisos,vanos:renderVanos,cantidades:renderCantidades,planos:renderPlanos};
+const RENDER={ia:renderAsistente,capas:renderCapas,niveles:renderNiveles,estilo:renderStyle,muebles:renderMuebles,paredes:renderWalls,pisos:renderPisos,vanos:renderVanos,cantidades:renderCantidades,planos:renderPlanos,versiones:renderVersiones};
 function renderTab(){RENDER[tab]();}
 $('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.t;
   $('tabs').querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));for(const t of Object.keys(RENDER))$('p-'+t).hidden=t!==tab;
@@ -1643,6 +1671,7 @@ async function aiSend(text){
   const s=ai.settings,info=AiClient.PROVIDERS[s.provider];
   ai.log.push({kind:'user',text});ai.transcript.push({role:'user',text});
   const modeBefore=engine.mode;
+  if(!planIsBlank())addVersion(JSON.parse(JSON.stringify(state)),'auto',`Antes del asistente: ${text.slice(0,32)}`);
   ai.busy=true;ai.draft='';ai.controller=new AbortController();engine.setLocked(true);
   renderAiLog();syncAiButtons();
   let changed=false;
@@ -2076,7 +2105,7 @@ function renderPlanos(){
       },
       del:()=>{if(plans.list().length<2){showToast('Debe quedar al menos un plano.');return;}pendingDelete=id;pendingShare=null;renderPlanos();},
       delNo:()=>{pendingDelete=null;renderPlanos();},
-      delYes:()=>{const wasActive=id===plans.active.id,next=plans.remove(id);pendingDelete=null;if(wasActive)loadPlan(next);else renderPlanos();}
+      delYes:()=>{const wasActive=id===plans.active.id,next=plans.remove(id);versions.drop(id);pendingDelete=null;if(wasActive)loadPlan(next);else renderPlanos();}
     };
     await actions[b.dataset.a]();});
   const knownList=$('knownlist');
@@ -2085,12 +2114,112 @@ function renderPlanos(){
     if(b.dataset.a==='goto')location.href='/p/'+row.dataset.id;
     else{Sharing.forget(row.dataset.id);renderPlanos();}});
   $('plExport').onclick=()=>{
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([plans.exportJson(plans.active.id)],{type:'application/json'}));
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([exportPlanFile(plans.active.id)],{type:'application/json'}));
     a.download=plans.active.name.toLowerCase().replace(/[^a-z0-9áéíóúñ]+/g,'-').replace(/^-|-$/g,'')+'.json';a.click();URL.revokeObjectURL(a.href);};
   $('plImport').onclick=()=>$('plFile').click();
   $('plFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
-    try{leavePlan();loadPlan(plans.importJson(await f.text()));showToast('Plano importado.');}
+    try{const text=await f.text(),plan=plans.importJson(text);importVersions(plan.id,text);leavePlan();loadPlan(plan);showToast('Plano importado.');}
     catch(err){showToast('No se pudo importar: '+err.message);}});
+}
+
+/* ================= versiones ================= */
+const KIND_NAMES={walls:['muro','muros'],openings:['vano','vanos'],floors:['piso','pisos'],stairs:['escalera','escaleras'],items:['pieza','piezas']};
+let versionFilter='all',versionRename=null,versionRestore=null,versionDelete=null;
+
+function diffText(d){
+  if(d.same)return 'Igual al plano actual';
+  const kinds=(sign,counts)=>Object.entries(counts).filter(([,n])=>n).map(([k,n])=>`${sign}${n} ${KIND_NAMES[k][n===1?0:1]}`);
+  const parts=[...kinds('+',d.added),...kinds('−',d.removed),...kinds('~',d.changed)];
+  if(d.levelsAdded)parts.push(`+${d.levelsAdded} ${d.levelsAdded===1?'nivel':'niveles'}`);
+  if(d.levelsRemoved)parts.push(`−${d.levelsRemoved} ${d.levelsRemoved===1?'nivel':'niveles'}`);
+  if(d.settings)parts.push('acabados o ajustes distintos');
+  return 'Al restaurar: '+parts.join(' · ');
+}
+const exportPlanFile=id=>{
+  const file=JSON.parse(plans.exportJson(id)),list=versions.exportFor(id);
+  if(list.length)file.versions=list;
+  return JSON.stringify(file,null,1);
+};
+function importVersions(id,text){
+  try{versions.importInto(id,JSON.parse(text).versions,s=>!!s&&Array.isArray(s.items)&&!!s.walls&&typeof s.walls==='object');}catch(e){}
+}
+function saveVersion(label){
+  if(!REMOTE_ID)captureThumb();
+  const added=addVersion(JSON.parse(JSON.stringify(state)),'named',label);
+  if(added&&added.error)showToast(added.error==='full'?`Ya tienes ${Versions.MAX_NAMED} versiones guardadas: borra alguna.`:'No se pudo guardar: el almacenamiento del navegador está lleno.');
+  else if(!added)showToast('Ya hay un punto igual a este plano.');
+  else showToast('Versión guardada.');
+  return added;
+}
+function restoreVersion(id){
+  const v=versions.get(versionKey(),id);
+  if(!v||isReadOnly()||ai.busy)return;
+  addVersion(JSON.parse(JSON.stringify(state)),'auto',`Antes de restaurar «${v.label}»`);
+  restoreSnapshot(JSON.parse(JSON.stringify(v.state)));
+  planHistory.record(state);syncUndoUI();
+  if(!camValid(camKey))camKey='planta';
+  setCam(camKey);
+  showToast(`Plano vuelto a «${v.label}». Ctrl+Z lo deshace.`);
+}
+function copyVersion(id){
+  const v=versions.get(versionKey(),id);
+  if(!v)return;
+  const base=REMOTE_ID?remote.name:plans.active.name,name=`${base} · ${v.label}`.slice(0,40),snapshot=JSON.parse(JSON.stringify(v.state));
+  if(REMOTE_ID){plans.add(name,snapshot);showToast('Copia guardada en tus planos. Ábrela desde “Ir a mis planos”.');return;}
+  leavePlan();loadPlan(plans.add(name,snapshot));
+}
+
+function versionRow(v,current){
+  const items=Levels.allItems(v.state).length,kind=v.kind==='auto'?'Automática':'Guardada';
+  const text=diffText(Versions.diff(current,v.state));
+  return `<div class="plan ver ${v.kind==='named'?'on':''}" data-id="${esc(v.id)}">
+    <button class="open" data-a="restore" aria-label="Restaurar ${esc(v.label)}">${v.thumb?`<img src="${v.thumb}" alt="">`:'<span class="ph"></span>'}<span><b>${esc(v.label)}</b><small><span class="kind">${kind}</span> · ${fmtDate(v.at)} · ${items} piezas</small><small class="d">${esc(text)}</small></span></button>
+    <button class="btn" data-a="copy" aria-label="Abrir ${esc(v.label)} como copia" title="Abrir como un plano nuevo, sin tocar el actual">Copia</button>
+    <button class="btn" data-a="rename" aria-label="${v.kind==='auto'?'Conservar y nombrar':'Renombrar'} ${esc(v.label)}" title="${v.kind==='auto'?'Conservar y ponerle nombre':'Cambiar el nombre'}">${v.kind==='auto'?'Conservar':'Nombre'}</button>
+    <button class="btn" data-a="del" aria-label="Eliminar ${esc(v.label)}">✕</button>
+    ${versionRename===v.id?`<div class="rename"><input type="text" id="vRename" value="${esc(v.label)}" maxlength="${Versions.LABEL_MAX}" aria-label="Nombre de la versión"><button class="btn on" data-a="renameYes">Guardar</button><button class="btn" data-a="renameNo">Cancelar</button></div>`:''}
+    ${versionRestore===v.id?`<div class="confirm"><span class="note">El plano vuelve a esta versión. Lo de ahora queda guardado antes como punto automático, y Ctrl+Z también lo deshace.</span><button class="btn on" data-a="restoreYes">Sí, restaurar</button><button class="btn" data-a="restoreNo">Cancelar</button></div>`:''}
+    ${versionDelete===v.id?`<div class="confirm"><span class="note">Se elimina esta versión. No se puede deshacer.</span><button class="btn on" data-a="delYes">Sí, eliminar</button><button class="btn" data-a="delNo">Cancelar</button></div>`:''}
+  </div>`;
+}
+
+function renderVersiones(){
+  const key=versionKey(),all=versions.list(key),named=all.filter(v=>v.kind==='named').length,auto=all.length-named;
+  const shown=all.filter(v=>versionFilter==='all'||(versionFilter==='named')===(v.kind==='named'));
+  const filter=(k,label,n)=>`<button class="btn ${versionFilter===k?'on':''}" data-f="${k}">${label} (${n})</button>`;
+  const current=state;
+  $('p-versiones').innerHTML=`<div><h3>Guardar una versión</h3>
+    <input type="text" id="vLabel" maxlength="${Versions.LABEL_MAX}" placeholder="Nombre, p. ej. «Antes de mover la cocina»" aria-label="Nombre de la versión">
+    <div class="foot" style="margin-top:8px"><button class="btn on" id="vSave">Guardar versión</button></div>
+    <p class="note" style="margin-top:6px">Además, el editor deja un punto automático cada ${Versions.AUTO_EVERY/60000} minutos de trabajo y antes de que el asistente cambie el plano o de restaurar otra versión. Se guardan solo en este navegador: para llevarlas a otro equipo, exporta el plano desde <b>Planos</b>.</p></div>
+    <div><h3>Historial (${all.length})</h3>
+    <div class="vfilters" id="vFilters">${filter('all','Todas',all.length)}${filter('named','Guardadas',named)}${filter('auto','Automáticas',auto)}</div>
+    <div class="plans" id="vList" style="margin-top:8px">${shown.length?shown.map(v=>versionRow(v,current)).join(''):'<p class="note">Todavía no hay versiones aquí. Guarda una antes de probar algo distinto.</p>'}</div>
+    ${all.length?`<p class="note" style="margin-top:8px">Se conservan hasta ${Versions.MAX_NAMED} guardadas y las ${Versions.MAX_AUTO} automáticas más recientes · ${Math.max(1,Math.round(versions.bytes(key)/1024))} KB.</p>`:''}</div>`;
+
+  const save=()=>{const added=saveVersion($('vLabel').value);if(added&&!added.error)$('vLabel').value='';};
+  $('vSave').onclick=save;
+  $('vLabel').addEventListener('keydown',e=>{if(e.key==='Enter')save();});
+  $('vFilters').onclick=e=>{const b=e.target.closest('button[data-f]');if(b){versionFilter=b.dataset.f;renderVersiones();}};
+  if($('vRename')){$('vRename').focus();$('vRename').select();$('vRename').addEventListener('keydown',e=>{if(e.key==='Enter')$('vList').querySelector('[data-a="renameYes"]').click();else if(e.key==='Escape')$('vList').querySelector('[data-a="renameNo"]').click();});}
+  $('vList').onclick=e=>{
+    const b=e.target.closest('button'),row=e.target.closest('.plan');if(!b||!row)return;
+    const id=row.dataset.id,reset=()=>{versionRename=versionRestore=versionDelete=null;};
+    const actions={
+      restore:()=>{reset();versionRestore=id;},
+      restoreNo:reset,
+      restoreYes:()=>{reset();restoreVersion(id);},
+      copy:()=>copyVersion(id),
+      rename:()=>{reset();versionRename=id;},
+      renameNo:reset,
+      renameYes:()=>{const label=$('vRename').value;if(versions.rename(key,id,label))versions.keep(key,id);else showToast('Escribe un nombre.');reset();},
+      del:()=>{reset();versionDelete=id;},
+      delNo:reset,
+      delYes:()=>{versions.remove(key,id);reset();}
+    };
+    actions[b.dataset.a]();
+    renderVersiones();
+  };
 }
 
 /* ================= plano compartido (ruta /p/<id>) ================= */
@@ -2151,6 +2280,7 @@ function renderBanner(){
 
 function applyRemoteData(data){
   const viewing=state.level;
+  checkpointIfDue(JSON.stringify(state),'Antes de cargar cambios de otras personas');
   state=normalizeState(data.state);syncCustomLib();planHistory.reset(state);syncUndoUI();
   Levels.switchTo(state,Math.min(viewing,Levels.count(state)-1));
   pruneItems();
@@ -2253,6 +2383,7 @@ function renderShared(){
     const r=await Sharing.remove(REMOTE_ID);
     if(!r.ok){showToast(shareError(r));return;}
     plans.list().filter(p=>p.remote&&p.remote.id===REMOTE_ID).forEach(p=>plans.remove(p.id));
+    versions.drop(versionKey());
     location.href='/';};
 }
 
