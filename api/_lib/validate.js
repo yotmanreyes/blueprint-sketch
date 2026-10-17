@@ -9,6 +9,8 @@ const PRICE_KEY=/^[A-Za-z0-9:_.-]{1,60}$/;
 const MAX_PRICE=1e9;
 const MODEL_ID=/^m_[a-z0-9]{6,20}$/;
 MAX.models=40;
+MAX.levels=8;
+MAX.stairs=50;
 const LIMIT=1000;
 
 class Invalid extends Error{}
@@ -53,6 +55,12 @@ function floor(f){
   return{id:id(f.id,'floor id'),x:num(f.x,'floor'),z:num(f.z,'floor'),w:num(f.w,'floor',.1,LIMIT),d:num(f.d,'floor',.1,LIMIT),
     f:key(f.f,'floor finish'),name:text(f.name||'','floor name',30),zone:text(f.zone||'','floor zone',20)};
 }
+function stair(s){
+  obj(s,'stair');
+  const out={id:id(s.id,'stair id'),x:num(s.x,'stair'),z:num(s.z,'stair'),w:num(s.w,'stair',.3,10),d:num(s.d,'stair',1,20),r:num(s.r,'stair r',0,3)};
+  if(!Number.isInteger(out.r))fail('stair r');
+  return out;
+}
 function light(l){
   obj(l,'light');
   return{x:num(l.x,'light'),z:num(l.z,'light'),drop:num(l.drop,'light',0,5)};
@@ -82,9 +90,33 @@ function models(m){
   return out;
 }
 
+function layout(L){
+  obj(L,'layout');
+  return{
+    walls:list(L.walls,'walls',MAX.walls).map(wall),
+    openings:list(L.openings,'openings',MAX.openings).map(opening),
+    floors:list(L.floors,'floors',MAX.floors).map(floor),
+    lights:list(L.lights||[],'lights',MAX.lights).map(light),
+    stairs:list(L.stairs||[],'stairs',MAX.stairs).map(stair),
+    tag:L.tag==='house'?'house':''
+  };
+}
+// the open level is stored at the top of the state; every other level carries its own layout and items
+function levels(s){
+  if(s.levels===undefined)return{level:0,levels:[{id:'l1',name:'Planta baja'}]};
+  const entries=list(s.levels,'levels',MAX.levels);
+  if(!entries.length||!Number.isInteger(s.level)||s.level<0||s.level>=entries.length)fail('level');
+  return{level:s.level,levels:entries.map((l,i)=>{
+    obj(l,'level');
+    const out={id:id(l.id,'level id'),name:text(l.name,'level name',30)};
+    if(i!==s.level){out.layout=layout(l.layout);out.items=list(l.items,'items',MAX.items).map(item);}
+    return out;
+  })};
+}
+
 export function cleanState(s){
   obj(s,'state');
-  const L=obj(s.layout,'layout'),walls={};
+  const walls={};
   const faces=obj(s.walls,'walls');
   const faceKeys=Object.keys(faces);
   if(faceKeys.length>MAX.faces)fail('too many faces');
@@ -97,13 +129,8 @@ export function cleanState(s){
     defaults:{floor:key(obj(s.defaults,'defaults').floor,'default floor')},
     n:num(s.n,'counter',0,1e7),
     items:list(s.items,'items',MAX.items).map(item),
-    layout:{
-      walls:list(L.walls,'walls',MAX.walls).map(wall),
-      openings:list(L.openings,'openings',MAX.openings).map(opening),
-      floors:list(L.floors,'floors',MAX.floors).map(floor),
-      lights:list(L.lights||[],'lights',MAX.lights).map(light),
-      tag:L.tag==='house'?'house':''
-    }
+    layout:layout(s.layout),
+    ...levels(s)
   };
 }
 // A shared model must be a well-formed, self-contained .glb: nothing may point outside the file.

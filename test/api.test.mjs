@@ -38,6 +38,13 @@ const state = {
     { id: 'i10', t: 'm_a1b2c3d4e5f6', x: 3, z: 2, r: 1, sx: 1.1, sy: 1.5, sz: 1.1 }
   ]
 };
+layout.stairs.push({ id: 's1', x: 1, z: 6, w: .9, d: 3.6, r: 1 });
+const upstairs = Layout.empty();
+upstairs.walls.push({ id: 'u1', x1: 0, z1: 0, x2: 4, z2: 0, t: .15, faces: { hi: 'u1b' } });
+upstairs.floors.push({ id: 'uf', x: 2, z: 2, w: 4, d: 4, f: 'marmol_blanco', name: 'Estudio', zone: '' });
+state.walls.u1b = { t: 'pintura', c: '#f4f3ef' };
+state.level = 0;
+state.levels = [{ id: 'l1', name: 'Planta baja' }, { id: 'l2', name: 'Nivel 1', layout: upstairs, items: [{ id: 'iu', t: 'silla', x: 1, z: 1, r: 0 }] }];
 let ok = 0;
 const check = (name, fn) => { fn(); ok++; console.log('ok  ', name); };
 
@@ -109,6 +116,15 @@ await bad('too many models', s => { s.models = Object.fromEntries(Array.from({ l
 await bad('a negative price', s => { s.prices.wall = -1; })();
 await bad('a price key with markup', s => { s.prices['<img>'] = 1; })();
 await bad('a long currency', s => { s.currency = 'dollars!!'; })();
+await bad('a level index out of range', s => { s.level = 2; })();
+await bad('a level that is not an integer', s => { s.level = .5; })();
+await bad('a parked level without a layout', s => { delete s.levels[1].layout; })();
+await bad('too many levels', s => { s.levels = Array.from({ length: 9 }, (_, i) => ({ id: 'l' + i, name: 'N', layout: Layout.empty(), items: [] })); s.level = 0; delete s.levels[0].layout; delete s.levels[0].items; })();
+await bad('a level name that is too long', s => { s.levels[1].name = 'x'.repeat(31); })();
+await bad('a level id with markup', s => { s.levels[1].id = '<b>'; })();
+await bad('a stair that is not a quarter turn', s => { s.layout.stairs[0].r = 1.5; })();
+await bad('an absurd stair', s => { s.layout.stairs[0].d = 500; })();
+await bad('too many stairs', s => { s.layout.stairs = Array.from({ length: 51 }, (_, i) => ({ ...state.layout.stairs[0], id: 's' + i })); })();
 await bad('too many items', s => { s.items = Array.from({ length: 600 }, (_, i) => ({ ...state.items[0], id: 'i' + i })); })();
 r = await call(plan, { method: 'PUT', query: { id }, token: owner, body: { baseVersion: 5 } });
 check('missing state is a 400, not a crash', () => assert.equal(r.status, 400));
@@ -120,6 +136,16 @@ check('unknown keys are stripped', () => { assert.equal(r.body.state.evil, undef
 check('imported model data survives a round trip', () => {
   assert.equal(r.body.state.models.m_a1b2c3d4e5f6.name, 'Silla de oficina');
   assert.equal(r.body.state.items.find(i => i.id === 'i10').sy, 1.5);
+});
+check('levels and stairs survive a round trip', () => {
+  const got = r.body.state;
+  assert.equal(got.level, 0);
+  assert.equal(got.levels.length, 2);
+  assert.equal(got.levels[0].layout, undefined);
+  assert.equal(got.levels[1].name, 'Nivel 1');
+  assert.equal(got.levels[1].layout.walls[0].id, 'u1');
+  assert.equal(got.levels[1].items[0].id, 'iu');
+  assert.deepEqual(got.layout.stairs, [{ id: 's1', x: 1, z: 6, w: .9, d: 3.6, r: 1 }]);
 });
 check('prices and currency survive a round trip', () => { assert.equal(r.body.state.prices['door:0.9x2.1'], 150); assert.equal(r.body.state.currency, '$'); });
 

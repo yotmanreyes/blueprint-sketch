@@ -16,7 +16,7 @@ const Layout=(()=>{
     else if(w.z1>w.z2)[w.z1,w.z2]=[w.z2,w.z1];
     return w;
   }
-  const empty=()=>({walls:[],openings:[],floors:[],lights:[],tag:''});
+  const empty=()=>({walls:[],openings:[],floors:[],lights:[],stairs:[],tag:''});
   const isEmpty=L=>!L.walls.length&&!L.floors.length;
 
   function frame(L){
@@ -109,6 +109,32 @@ const Layout=(()=>{
     return [...new Set([lo,...cs.map(v=>+v.toFixed(3)),hi])].sort((a,b)=>a-b);
   }
 
+  // a stair climbs along its local z axis, turned `r` quarter turns; `w` is its width and `d` its run
+  const STAIR={width:.9,length:3.6,minWidth:.6,maxWidth:3,minLength:1.5,maxLength:10,riser:.18};
+  function stairRect(s){
+    const swap=s.r%2!==0,hx=(swap?s.d:s.w)/2,hz=(swap?s.w:s.d)/2;
+    return{x0:s.x-hx,x1:s.x+hx,z0:s.z-hz,z1:s.z+hz};
+  }
+  const stairSteps=rise=>Math.max(2,Math.round(rise/STAIR.riser));
+
+  // what is left of a rectangle after cutting out others (floor slabs under a stairwell)
+  function subtractRects(rect,cuts){
+    let pieces=[rect];
+    for(const c of cuts){
+      const next=[];
+      for(const p of pieces){
+        if(c.x1<=p.x0+EPS||c.x0>=p.x1-EPS||c.z1<=p.z0+EPS||c.z0>=p.z1-EPS){next.push(p);continue;}
+        if(c.z0>p.z0+EPS)next.push({x0:p.x0,x1:p.x1,z0:p.z0,z1:c.z0});
+        if(c.z1<p.z1-EPS)next.push({x0:p.x0,x1:p.x1,z0:c.z1,z1:p.z1});
+        const z0=Math.max(p.z0,c.z0),z1=Math.min(p.z1,c.z1);
+        if(c.x0>p.x0+EPS)next.push({x0:p.x0,x1:c.x0,z0,z1});
+        if(c.x1<p.x1-EPS)next.push({x0:c.x1,x1:p.x1,z0,z1});
+      }
+      pieces=next;
+    }
+    return pieces;
+  }
+
   // the original room + bathroom + corridor, expressed as data
   function house({win,floor}){
     const W=(id,x1,z1,x2,z2,t,faces)=>({id,x1,z1,x2,z2,t,faces});
@@ -133,10 +159,10 @@ const Layout=(()=>{
       {id:'f_bath',x:1.4,z:2,w:2.8,d:4,f:floor.bano,name:'Baño',zone:'bano'}
     ];
     const lights=[[2,6,.45],[1.3,7.2,.75],[3.4,1,.4],[3.4,3,.4],[1.4,2.2,.35]].map(([x,z,drop])=>({x,z,drop}));
-    return{walls,openings,floors,lights,tag:'house'};
+    return{walls,openings,floors,lights,stairs:[],tag:'house'};
   }
 
   return{isH,axisOf,fixed,span,length,wallById,normalize,empty,isEmpty,frame,floorsBounds,innerBounds,endInfo,opsOf,overlaps,
-    fitOpening,refitWallOpenings,nearestWall,resizeFloor,faceIds,splits,house};
+    fitOpening,refitWallOpenings,nearestWall,resizeFloor,faceIds,splits,house,STAIR,stairRect,stairSteps,subtractRects};
 })();
 if(typeof module!=='undefined')module.exports=Layout;
