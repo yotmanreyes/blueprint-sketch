@@ -1,5 +1,5 @@
 {
-  "name": "remodelacion-cuarto-bano",
+  "name": "blueprint-sketch",
   "private": true,
   "type": "module",
   "description": "Shared plans API for the remodeling editor. The editor itself is static and needs no build.",
