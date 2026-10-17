@@ -3,7 +3,8 @@
    server logs) grants one role: owner, editor or viewer. */
 const Sharing=(()=>{
   const TOKENS_KEY='bs-tokens-v1',KNOWN_KEY='bs-known-v1';
-  const SAVE_DELAY_MS=800,POLL_MS=8000;
+  // Vercel Blob's free tier allows 2,000 writes and 10,000 reads a month, so saves are batched and polling is slow
+  const SAVE_DELAY_MS=4000,POLL_MS=45000,RETRY_MS=15000;
   const ROLE_NAMES={owner:'Propietario',editor:'Editor',viewer:'Lector'};
 
   const read=key=>{try{return JSON.parse(localStorage.getItem(key))||{};}catch(e){return{};}};
@@ -34,9 +35,9 @@ const Sharing=(()=>{
   const remember=(id,name,role)=>write(KNOWN_KEY,{...read(KNOWN_KEY),[id]:{name,role,seen:Date.now()}});
   const forget=id=>{const k=read(KNOWN_KEY);delete k[id];write(KNOWN_KEY,k);forgetToken(id);};
 
-  async function call(method,path,{token,body}={}){
+  async function call(method,path,{token,body,keepalive}={}){
     try{
-      const res=await fetch(path,{method,cache:'no-store',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});
+      const res=await fetch(path,{method,cache:'no-store',keepalive,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});
       let data=null;
       try{data=await res.json();}catch(e){}
       return{status:res.status,ok:res.ok,data};
@@ -76,19 +77,19 @@ const Sharing=(()=>{
       remember(id,name,role);
       return r;
     }
-    async function flush(){
+    async function flush(keepalive=false){
       if(!dirty||saving||conflict||role==='viewer')return;
       saving=true;status('saving');
       const sent=editRev,body={state:hooks.getState(),baseVersion:version};
       if(nameDirty)body.name=name;
-      const r=await call('PUT',`/api/plans/${id}`,{token:token(),body});
+      const r=await call('PUT',`/api/plans/${id}`,{token:token(),body,keepalive});
       saving=false;
       if(r.ok){version=r.data.version;dirty=editRev!==sent;nameDirty=dirty&&nameDirty;status(dirty?'pending':'saved');}
       else if(r.status===409){conflict=true;status('conflict');}
       else if(r.status===403||r.status===404){status('denied');}
       else status('offline');
       if(dirty&&!conflict&&r.ok)queueSave();
-      if(!r.ok&&r.status!==409&&r.status!==403&&r.status!==404)saveTimer=setTimeout(flush,POLL_MS);
+      if(!r.ok&&r.status!==409&&r.status!==403&&r.status!==404)saveTimer=setTimeout(flush,RETRY_MS);
     }
     function queueSave(){
       if(role==='viewer')return;
@@ -105,8 +106,17 @@ const Sharing=(()=>{
       version=r.data.version;role=r.data.role;name=r.data.name;
       hooks.onRemote(r.data);
     }
-    const start=()=>{pollTimer=setInterval(poll,POLL_MS);};
-    const stop=()=>{clearInterval(pollTimer);clearTimeout(saveTimer);};
+    // changes are sent before the page goes away and checked as soon as it comes back
+    const onVisibility=()=>{if(document.visibilityState==='hidden'){clearTimeout(saveTimer);flush(true);}else poll();};
+    const onPageHide=()=>{clearTimeout(saveTimer);flush(true);};
+    const start=()=>{
+      pollTimer=setInterval(poll,POLL_MS);
+      document.addEventListener('visibilitychange',onVisibility);addEventListener('pagehide',onPageHide);
+    };
+    const stop=()=>{
+      clearInterval(pollTimer);clearTimeout(saveTimer);
+      document.removeEventListener('visibilitychange',onVisibility);removeEventListener('pagehide',onPageHide);
+    };
     async function resolve(keep){
       conflict=false;
       if(keep==='mine'){
