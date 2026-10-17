@@ -156,6 +156,8 @@ aside .pane:not(:last-child){flex:1}
 .tpl:hover,.tpl:focus-visible{border-color:var(--accent);outline:none;box-shadow:0 0 0 1px var(--accent)}
 .tpl .prev{aspect-ratio:4/3;background:#0b1620;display:grid;place-items:center;padding:12px;background-image:linear-gradient(rgba(111,168,220,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(111,168,220,.08) 1px,transparent 1px);background-size:16px 16px}
 .tpl .prev svg{width:100%;height:100%}
+.tpl .prev{position:relative}
+.tpl-levels{position:absolute;top:8px;right:8px;padding:3px 9px;font-size:.7rem;font-weight:700;border-radius:99px;background:var(--accent);color:#1a1209}
 .tpl .prev i{font-style:normal;color:var(--muted);font-size:.8rem}
 .tpl .meta{display:grid;gap:4px;padding:10px 12px 14px}
 .tpl .meta b{font-size:.98rem}
@@ -669,8 +671,10 @@ function buildStruct(){
 
 // the other levels are context: drawn for show at their height, rebuilt only when something they depend on changes
 // see-through copies of materials, so the levels you are not editing and the floors in the way can be looked through
-let showUpper=false,seeThrough=false,othersSignature='',seeThroughCache=new WeakMap();
+// the levels above show in every view but the plan unless a person chose otherwise; in the plan they would hide what is being drawn
+let showUpper=null,seeThrough=false,othersSignature='',seeThroughCache=new WeakMap();
 const SEE_THROUGH_OPACITY=.28;
+const upperShown=()=>showUpper===null?camKey!=='planta':showUpper;
 function seeThroughMat(m){
   if(m===HIT_PROXY)return m;
   let c=seeThroughCache.get(m);
@@ -682,12 +686,12 @@ function makeSeeThrough(root,only=()=>true){
 }
 const isFloorPiece=o=>o.userData.slab||(o.parent&&o.parent.userData.entity&&o.parent.userData.entity.kind==='floor');
 function buildOthers(force=false){
-  const signature=JSON.stringify([state.level,state.levels,showUpper,seeThrough,showUpper?state.layout.stairs:0,state.walls,state.wallBase,state.metal,state.wood]);
+  const signature=JSON.stringify([state.level,state.levels,upperShown(),seeThrough,upperShown()?state.layout.stairs:0,state.walls,state.wallBase,state.metal,state.wood]);
   if(!force&&signature===othersSignature)return;
   othersSignature=signature;
   clear(othersG);
   for(const lv of Levels.list(state)){
-    if(lv.index===state.level||(lv.index>state.level&&!showUpper))continue;
+    if(lv.index===state.level||(lv.index>state.level&&!upperShown()))continue;
     const g=new THREE.Group();g.position.y=Levels.offset(lv.index,state.level);othersG.add(g);
     buildLevelInto(g,lv.layout,{live:false,arriving:stairwells(lv.index),raised:lv.index>0}).userData.top=true;
     addEdges(g);
@@ -1453,7 +1457,7 @@ function setCam(k){
   const c=CAMS[k],over=isOverview();
   camera.position.set(...c.p);controls.target.set(...c.t);
   if(ceil)ceil.visible=!over;if(sky)sky.visible=!over;topHide();
-  camera.fov=camFov(k);camera.updateProjectionMatrix();controls.update();renderCams();need=true;
+  camera.fov=camFov(k);camera.updateProjectionMatrix();controls.update();renderCams();renderLevels();buildOthers();need=true;
 }
 function seg(el,fn){el.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===t));fn(t.dataset.v);});}
 $('cam').addEventListener('click',e=>{
@@ -1684,7 +1688,7 @@ function pruneItems(){
   for(const l of state.levels)if(l.items)l.items=l.items.filter(i=>LIB[i.t]);
 }
 function renderLevels(){
-  const upper=hasLevelAbove()?`<button data-v="upper" aria-pressed="${showUpper}" title="Mostrar los niveles de arriba">Ver arriba</button>`:'';
+  const upper=hasLevelAbove()?`<button data-v="upper" aria-pressed="${upperShown()}" title="Mostrar los niveles de arriba">Ver arriba</button>`:'';
   const through=Levels.count(state)>1?`<button data-v="through" aria-pressed="${seeThrough}" title="Ver a través de los pisos y de los otros niveles">Ver entre plantas</button>`:'';
   $('levels').innerHTML=Levels.list(state).map(l=>`<button data-v="${l.index}" aria-pressed="${l.index===state.level}">${esc(l.name)}</button>`).join('')+upper+through+
     '<button class="edit" data-v="add" aria-label="Añadir un nivel arriba">+ Nivel</button>';
@@ -1710,7 +1714,7 @@ function removeLevel(i){
   pendingLevelDelete=null;save();afterLevelChange();
 }
 function toggleSeeThrough(){seeThrough=!seeThrough;renderLevels();buildStruct();}
-function toggleUpper(){showUpper=!showUpper;renderLevels();buildOthers();if(tab==='niveles')renderNiveles();}
+function toggleUpper(){showUpper=!upperShown();renderLevels();buildOthers();if(tab==='niveles')renderNiveles();}
 $('levels').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.v==='add')addLevel();else if(b.dataset.v==='upper')toggleUpper();else if(b.dataset.v==='through')toggleSeeThrough();else openLevel(+b.dataset.v);
@@ -1724,7 +1728,7 @@ function renderNiveles(){
       <button class="btn" data-a="del" ${levels.length<2?'disabled':''} aria-label="Eliminar ${esc(l.name)}">Eliminar</button></div>
       ${pendingLevelDelete===l.id?`<div class="foot" data-i="${l.index}"><span class="note">Se borran sus muros, muebles y la escalera que llega a él.</span><button class="btn on" data-a="delYes">Sí, eliminar</button><button class="btn" data-a="delNo">Cancelar</button></div>`:''}</div>`).join('')}</div>
     <div class="foot" style="margin-top:8px"><button class="btn on" id="lvAdd">Añadir un nivel arriba</button></div></div>
-    <label class="note" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="lvUpper" ${showUpper?'checked':''}> Mostrar los niveles de arriba</label>
+    <label class="note" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="lvUpper" ${upperShown()?'checked':''}> Mostrar los niveles de arriba</label>
     <p class="note">Cada nivel mide ${f2(H)} m de alto más ${f2(Levels.SLAB)} m de losa. La escalera se dibuja en el nivel de abajo y abre el piso del de arriba. Con PgArriba y PgAbajo cambias de nivel.</p>`;
   $('lvAdd').onclick=addLevel;
   $('lvUpper').onchange=toggleUpper;
@@ -1898,7 +1902,7 @@ function templatePreview(key){
 function renderTemplates(){
   $('tplFilters').innerHTML=templateCategories().map(c=>`<button data-c="${esc(c)}" aria-pressed="${c===templateFilter}">${esc(c)}</button>`).join('');
   $('tplGrid').innerHTML=Templates.CATALOG.filter(t=>templateFilter==='Todas'||t.category===templateFilter).map(t=>
-    `<button class="tpl" data-k="${t.key}"><div class="prev">${templatePreview(t.key)}</div><div class="meta"><b>${esc(t.name)}</b><small>${esc(t.category)}${t.levels?` · ${t.levels} niveles`:''}</small><p>${esc(t.description)}</p></div></button>`).join('');
+    `<button class="tpl" data-k="${t.key}"><div class="prev">${templatePreview(t.key)}${t.levels?`<span class="tpl-levels">${t.levels} niveles</span>`:''}</div><div class="meta"><b>${esc(t.name)}</b><small>${esc(t.category)}${t.levels?` · ${t.levels} niveles`:''}</small><p>${esc(t.description)}</p></div></button>`).join('');
 }
 function openTemplates(mode){
   if(REMOTE_ID)return;
@@ -1917,7 +1921,7 @@ function chooseTemplate(key){
   }
   closeTemplates();
   if(engine.mode==='navigate')engine.setMode('build');
-  camKey='planta';setCam('planta');
+  setCam(Levels.count(built)>1?DEFAULT_AERIAL:'planta');
 }
 $('tplFilters').addEventListener('click',e=>{const b=e.target.closest('button[data-c]');if(b){templateFilter=b.dataset.c;renderTemplates();}});
 $('tplGrid').addEventListener('click',e=>{const b=e.target.closest('button[data-k]');if(b)chooseTemplate(b.dataset.k);});
