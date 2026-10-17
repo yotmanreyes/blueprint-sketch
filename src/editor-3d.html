@@ -98,7 +98,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #remoteBanner{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:3;padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;max-width:min(560px,calc(100% - 32px))}
 #remoteMsg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(380px,calc(100% - 32px));padding:18px;display:grid;gap:10px;text-align:center;z-index:4}
 #remoteMsg h2{margin:0;font-size:1.1rem}#remoteMsg p{margin:0;font-size:.85rem;color:var(--muted)}#remoteMsg .foot{justify-content:center}
-.readonly #undoBtn,.readonly #redoBtn,.readonly aside .pane:last-child,.readonly #modes button:not([data-v="navigate"]),.readonly #tools,.readonly #tabs button:not([data-t="planos"]):not([data-t="cantidades"]),.readonly #selbar,.readonly #empty{display:none!important}
+.readonly #levels .edit,.readonly #undoBtn,.readonly #redoBtn,.readonly aside .pane:last-child,.readonly #modes button:not([data-v="navigate"]),.readonly #tools,.readonly #tabs button:not([data-t="planos"]):not([data-t="cantidades"]),.readonly #selbar,.readonly #empty{display:none!important}
+#levels button.edit{border-style:dashed}
+.lvrow{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}
+.lvrow.on input{border-color:var(--accent)}
 .linkrow{display:grid;grid-template-columns:1fr auto;gap:4px 8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:3px}
 .linkrow small{font-family:var(--mono);color:var(--muted);font-size:.65rem}
 .copybox{display:grid;gap:6px;padding:8px;border:1px solid var(--accent);border-radius:3px}
@@ -123,7 +126,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
     <div id="empty" class="glass" hidden>
       <h2>Plano vacío</h2>
       <p>Empieza dibujando una habitación o un muro. Con la herramienta elegida, arrastra sobre la cuadrícula.</p>
-      <div class="foot"><button class="btn on" id="emptyRoom">Dibujar habitación</button><button class="btn" id="emptyWall">Dibujar muro</button></div>
+      <div class="foot"><button class="btn on" id="emptyRoom">Dibujar habitación</button><button class="btn" id="emptyWall">Dibujar muro</button><button class="btn" id="emptyCopy" hidden>Copiar el nivel de abajo</button></div>
       <p class="note">Hay una casa de ejemplo en la pestaña Planos, como plantilla.</p>
     </div>
     <div id="remoteBanner" class="glass" hidden></div>
@@ -144,7 +147,9 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
       <button data-v="room" aria-pressed="false">Habitación</button>
       <button data-v="door" aria-pressed="false">Puerta</button>
       <button data-v="window" aria-pressed="false">Ventana</button>
+      <button data-v="stair" aria-pressed="false">Escalera</button>
     </div>
+    <div class="seg" id="levels" role="group" aria-label="Nivel"></div>
     <div class="seg" id="cam">
       <button data-v="planta" aria-pressed="true">Planta 3D</button>
       <button data-v="entrada" aria-pressed="false">Cuarto desde la entrada</button>
@@ -162,6 +167,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
       <button role="tab" data-t="paredes" aria-selected="false">Paredes</button>
       <button role="tab" data-t="pisos" aria-selected="false">Pisos</button>
       <button role="tab" data-t="vanos" aria-selected="false">Vanos</button>
+      <button role="tab" data-t="niveles" aria-selected="false">Niveles</button>
       <button role="tab" data-t="cantidades" aria-selected="false">Cantidades</button>
       <button role="tab" data-t="planos" aria-selected="false">Planos</button>
     </div>
@@ -170,6 +176,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
     <div class="pane" id="p-paredes" hidden></div>
     <div class="pane" id="p-pisos" hidden></div>
     <div class="pane" id="p-vanos" hidden></div>
+    <div class="pane" id="p-niveles" hidden></div>
     <div class="pane" id="p-cantidades" hidden></div>
     <div class="pane" id="p-planos" hidden></div>
     <div class="pane" style="border-top:1px solid var(--line);max-height:none">
@@ -185,6 +192,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 <script src="engine.js"></script>
 <script src="icons.js"></script>
 <script src="layout.js"></script>
+<script src="levels.js"></script>
 <script src="plan-store.js"></script>
 <script src="sharing.js"></script>
 <script src="history.js"></script>
@@ -193,7 +201,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 <script src="quantities.js"></script>
 <script src="models.js"></script>
 <script>
-const H=2.4, SNAP=.05;
+const H=Levels.WALL_HEIGHT, SNAP=.05;
 const $=id=>document.getElementById(id);
 const f2=n=>(+n).toFixed(2).replace('.',',');
 
@@ -321,7 +329,7 @@ function defaultState(){
     {id:'i4',t:'cama140',x:2.9,z:5.65,r:3},{id:'i5',t:'mesanoche',x:3.725,z:6.75,r:3},{id:'i6',t:'escritorio',x:1.3,z:7.625,r:2},
     {id:'i7',t:'silla',x:1.3,z:7.05,r:2},{id:'i8',t:'repisa',x:1.3,z:7.8,r:2,y:1.35},{id:'i9',t:'repisa',x:1.3,z:7.8,r:2,y:1.75},
     {id:'i10',t:'tapete',x:2.55,z:5.65,r:1},{id:'i11',t:'banco',x:3.05,z:.85,r:1},{id:'i12',t:'planta',x:.4,z:4.45,r:0}]};
-  styleWalls(s,'ind_concreto');return s;
+  styleWalls(s,'ind_concreto');return Levels.ensure(s);
 }
 // imported models appear in the library of the plan that uses them, under their own ids
 function syncCustomLib(){
@@ -330,7 +338,7 @@ function syncCustomLib(){
 }
 function blankState(){
   const s={style:'moderno',metal:'cromo',wood:'clara',walls:{},n:0,defaults:{floor:'marmol_blanco'},layout:Layout.empty(),items:[]};
-  styleWalls(s,'moderno');return s;
+  styleWalls(s,'moderno');return Levels.ensure(s);
 }
 function styleWalls(s,k){
   const S=STYLES[k];s.style=k;s.metal=S.metal;s.wood=S.wood;s.wallBase={...S.all};s.walls={};
@@ -347,9 +355,9 @@ function normalizeState(s){
   s.models=s.models||{};
   s.currency=s.currency||'$';
   s.wallBase=s.wallBase||{...(STYLES[s.style]||STYLES.moderno).all};
-  return s;
+  return Levels.ensure(s);
 }
-const isPristine=s=>Layout.isEmpty(normalizeState(s).layout)&&!s.items.length;
+const isPristine=s=>Layout.isEmpty(normalizeState(s).layout)&&!s.items.length&&s.levels.length<2;
 const plans=PlanStore.create(defaultState);
 const REMOTE_ID=Sharing.routeId();
 let remote=null;
@@ -383,7 +391,7 @@ scene.add(new THREE.HemisphereLight(0xfff1df,0x3a3836,.45));
 const sun=new THREE.DirectionalLight(0xdfeaff,1.3);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
 Object.assign(sun.shadow.camera,{left:-7,right:7,top:7,bottom:-7,near:.5,far:22});sun.shadow.bias=-.0005;scene.add(sun,sun.target);
 
-let structG=new THREE.Group(),itemsG=new THREE.Group();scene.add(structG,itemsG);
+let structG=new THREE.Group(),itemsG=new THREE.Group(),othersG=new THREE.Group();scene.add(structG,itemsG,othersG);
 let ceil, sky, need=true, cur=null, selWall=null, tab='estilo', camKey='planta';
 
 function B(g,x0,x1,y0,y1,z0,z1,mat,shadow=true){const m=new THREE.Mesh(new THREE.BoxGeometry(Math.max(x1-x0,.001),Math.max(y1-y0,.001),Math.max(z1-z0,.001)),mat);
@@ -440,36 +448,89 @@ function addPendant(g,x,z,drop){
   const l=new THREE.PointLight(0xffc98a,.95,7,2);l.position.set(x,H-drop-.22,z);g.add(l);
 }
 
-function buildStruct(){
-  clear(structG);const g=structG,L=state.layout;
-  ceil=new THREE.Group();ceil.visible=!isOverview();g.add(ceil);
+const growRect=(r,m)=>({x0:r.x0-m,x1:r.x1+m,z0:r.z0-m,z1:r.z1+m});
+function flatPiece(r,mat,y,facingUp){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(r.x1-r.x0,r.z1-r.z0),mat);
+  m.rotation.x=facingUp?-Math.PI/2:Math.PI/2;m.position.set((r.x0+r.x1)/2,y,(r.z0+r.z1)/2);return m;
+}
+const stairwells=index=>Levels.arriving(state,index).map(Layout.stairRect);
+
+// stairs climb along local +z: block steps over one storey, with a handrail on each side
+function buildStair(s){
+  const g=new THREE.Group(),n=Layout.stairSteps(Levels.PITCH),riser=Levels.PITCH/n,tread=s.d/n,hw=s.w/2;
+  for(let k=1;k<=n;k++){const z0=-s.d/2+(k-1)*tread;B(g,-hw,hw,0,k*riser,z0,z0+tread,M.wood);}
+  const run=s.d-tread,rise=Levels.PITCH-riser,len=Math.hypot(run,rise),angle=Math.atan2(rise,run);
+  for(const x of[-hw+.03,hw-.03]){
+    const rail=new THREE.Mesh(new THREE.BoxGeometry(.04,.04,len),M.metal);
+    rail.position.set(x,riser+.9+rise/2,-s.d/2+tread/2+run/2);rail.rotation.x=-angle;rail.castShadow=true;g.add(rail);
+    for(const[z,y0]of[[-s.d/2+tread/2,riser],[s.d/2-.05,Levels.PITCH]])B(g,x-.02,x+.02,y0,y0+.9,z-.02,z+.02,M.metal);
+  }
+  g.position.set(s.x,0,s.z);g.rotation.y=s.r*Math.PI/2;return g;
+}
+
+// floors, slabs, ceilings, walls, openings and stairs of one level; only the open level is selectable
+function buildLevelInto(g,L,{live,arriving,raised}){
+  const tag=(o,kind,id)=>live?engine.tag(o,kind,id):o;
+  const ceilG=new THREE.Group();g.add(ceilG);
+  const cuts=L.stairs.map(Layout.stairRect);
   for(const f of L.floors){
-    const m=new THREE.Mesh(new THREE.PlaneGeometry(f.w,f.d),floorMat(FLOORS[f.f]?f.f:'marmol_blanco',f.w,f.d));
-    m.rotation.x=-Math.PI/2;m.position.set(f.x,0,f.z);m.receiveShadow=true;g.add(engine.tag(m,'floor',f.id));
-    const c=new THREE.Mesh(new THREE.PlaneGeometry(f.w+.3,f.d+.3),M.ceil);c.rotation.x=Math.PI/2;c.position.set(f.x,H,f.z);ceil.add(c);
+    const rect={x0:f.x-f.w/2,x1:f.x+f.w/2,z0:f.z-f.d/2,z1:f.z+f.d/2},fg=tag(new THREE.Group(),'floor',f.id);g.add(fg);
+    for(const r of Layout.subtractRects(rect,arriving)){
+      const m=flatPiece(r,floorMat(FLOORS[f.f]?f.f:'marmol_blanco',r.x1-r.x0,r.z1-r.z0),0,true);m.receiveShadow=true;fg.add(m);
+    }
+    if(raised)for(const r of Layout.subtractRects(growRect(rect,.1),arriving))B(g,r.x0,r.x1,-Levels.SLAB,-.004,r.z0,r.z1,M.struct);
+    for(const r of Layout.subtractRects(growRect(rect,.15),cuts))ceilG.add(flatPiece(r,M.ceil,H-.002,false));
   }
   for(const w of L.walls){
     const ax=Layout.axisOf(w),c=Layout.fixed(w),[s0,s1]=Layout.span(w),A=Layout.endInfo(L,w,'a'),Z=Layout.endInfo(L,w,'b'),ops=Layout.opsOf(L,w);
-    const grp=engine.tag(new THREE.Group(),'wall',w.id);g.add(grp);
+    const grp=tag(new THREE.Group(),'wall',w.id);g.add(grp);
     run(grp,ax,c,w.t,s0-A.ext,s1+Z.ext,ops,()=>M.struct);
     for(const side of['lo','hi']){
       const id=w.faces&&w.faces[side];if(!id)continue;
       const lo=side==='lo',a0=s0+(lo?A.trimLo:A.trimHi),a1=s1-(lo?Z.trimLo:Z.trimHi);
       if(a1-a0<.05)continue;
       const ps=run(grp,ax,c+(lo?-1:1)*(w.t/2+FACE_GAP),.012,a0,a1,ops,(len,h)=>finishMat(faceSpec(id),len,h),id);
-      if(tab==='paredes'&&id===selWall)for(const p of ps){const o=new THREE.Mesh(p.geometry.clone(),M.hl);o.position.copy(p.position);o.renderOrder=2;grp.add(o);}
+      if(live&&tab==='paredes'&&id===selWall)for(const p of ps){const o=new THREE.Mesh(p.geometry.clone(),M.hl);o.position.copy(p.position);o.renderOrder=2;grp.add(o);}
     }
   }
   for(const o of L.openings){
     const w=Layout.wallById(L,o.wall);if(!w)continue;
-    const og=engine.tag(new THREE.Group(),'opening',o.id);g.add(og);buildOpening(og,o,w);
+    const og=tag(new THREE.Group(),'opening',o.id);g.add(og);buildOpening(og,o,w);
   }
+  for(const s of L.stairs)g.add(tag(buildStair(s),'stair',s.id));
+  return ceilG;
+}
+
+function buildStruct(){
+  clear(structG);const g=structG,L=state.layout;
+  ceil=buildLevelInto(g,L,{live:true,arriving:stairwells(state.level),raised:state.level>0});
+  ceil.visible=!isOverview();
   addSky(g);aimSun();
   const PG=new THREE.Group();PG.name='pend';g.add(PG);
   for(const p of L.lights)addPendant(PG,p.x,p.z,p.drop);
   addEdges(g);addPlanOverlay(g);
   PG.traverse(o=>{if(o.isMesh)o.userData.top=true});topHide();
+  buildOthers();
   need=true;
+}
+
+// the other levels are context: drawn for show at their height, rebuilt only when something they depend on changes
+let showUpper=false,othersSignature='';
+function buildOthers(force=false){
+  const signature=JSON.stringify([state.level,state.levels,showUpper,showUpper?state.layout.stairs:0,state.walls,state.wallBase,state.metal,state.wood]);
+  if(!force&&signature===othersSignature)return;
+  othersSignature=signature;
+  clear(othersG);
+  for(const lv of Levels.list(state)){
+    if(lv.index===state.level||(lv.index>state.level&&!showUpper))continue;
+    const g=new THREE.Group();g.position.y=Levels.offset(lv.index,state.level);othersG.add(g);
+    buildLevelInto(g,lv.layout,{live:false,arriving:stairwells(lv.index),raised:lv.index>0}).userData.top=true;
+    addEdges(g);
+    const furniture=new THREE.Group();g.add(furniture);
+    for(const it of lv.items)if(LIB[it.t])furniture.add(buildItem(it));
+    const lights=[];furniture.traverse(o=>{if(o.isLight)lights.push(o);});lights.forEach(l=>l.parent.remove(l));
+  }
+  topHide();need=true;
 }
 
 /* ================= plano: cuadrícula, contornos y cotas ================= */
@@ -512,9 +573,21 @@ function dim(g,ax,fixed,a,b,text){
   const mid=(a+b)/2,lbl=ax==='x'?labelMesh(text,mid,fixed-.2,.2,'#9fd0ff',y+.01):labelMesh(text,fixed-.4,mid,.2,'#9fd0ff',y+.01);g.add(lbl);
 }
 
+// the walls of the level below, as a faint footprint to draw over
+const GHOST=new THREE.MeshBasicMaterial({color:0x6fa8dc,transparent:true,opacity:.22,depthWrite:false,toneMapped:false});
+function addGhost(P){
+  if(state.level<1)return;
+  for(const w of Levels.layoutOf(state,state.level-1).walls){const[a,b]=Layout.span(w);slab(P,Layout.axisOf(w),Layout.fixed(w),w.t,a-w.t/2,b+w.t/2,.012,.02,GHOST,false);}
+}
+const CLIMB_ARROWS=['↓','→','↑','←'];
+function addStairLabels(P){
+  for(const s of state.layout.stairs)P.add(labelMesh(`${CLIMB_ARROWS[s.r]} SUBE`,s.x,s.z,.28,ROOM_INK,Levels.PITCH+.06));
+  for(const s of Levels.arriving(state,state.level))P.add(labelMesh(`${CLIMB_ARROWS[(s.r+2)%4]} BAJA`,s.x,s.z,.28,ROOM_INK,.03));
+}
 function addPlanOverlay(g){
   const L=state.layout,F=Layout.frame(L),P=new THREE.Group();
   P.userData.plan=true;g.add(P);
+  addGhost(P);addStairLabels(P);
   if(!F)return;
   const chain=(ax,at,pts)=>{for(let i=0;i<pts.length-1;i++)dim(P,ax,at,pts[i],pts[i+1],f2(pts[i+1]-pts[i]));};
   const xs=Layout.splits(L,'x'),zs=Layout.splits(L,'z');
@@ -786,6 +859,38 @@ engine.define('floor',{
     Layout.resizeFloor(state.layout,f,{x0,x1,z0,z1},H);}
 });
 
+/* ---- escaleras ---- */
+const STAIR=Layout.STAIR;
+const hasLevelAbove=()=>state.level<Levels.count(state)-1;
+engine.define('stair',{
+  get:id=>state.layout.stairs.find(s=>s.id===id),
+  object:id=>entityGroup('stair',id),
+  label:()=>'Escalera',
+  fields:s=>[
+    field('x','X',s.x,{min:-100,max:100,set:v=>{s.x=v;}}),
+    field('z','Z',s.z,{min:-100,max:100,set:v=>{s.z=v;}}),
+    field('w','Ancho',s.w,{min:STAIR.minWidth,max:STAIR.maxWidth,set:v=>{s.w=v;}}),
+    field('d','Largo',s.d,{min:STAIR.minLength,max:STAIR.maxLength,set:v=>{s.d=v;}})],
+  describe:s=>`${f2(s.w)} × ${f2(s.d)} m · ${Layout.stairSteps(Levels.PITCH)} escalones · sube ${CLIMB_ARROWS[s.r]}`,
+  grab:(s,p)=>({x:s.x-p.x,z:s.z-p.z}),
+  drag:(s,p,o)=>{s.x=snap5(p.x+o.x);s.z=snap5(p.z+o.z);},
+  live:queueStruct,rebuild:buildStruct,
+  keys:{...ARROWS,Delete:'del',Backspace:'del',r:'rot',R:'rot'},
+  actions:()=>[...arrowButtons(['l','u','d','r']),{a:'rot',t:'Girar 90°'},{a:'del',t:'Eliminar'}],
+  act:(s,a)=>{
+    if(a==='del'){state.layout.stairs=state.layout.stairs.filter(x=>x!==s);return{rebuild:true};}
+    if(a==='rot'){s.r=(s.r+1)%4;return{rebuild:true};}
+    const[dx,dz]=arrowStep(a);s.x=r3(s.x+dx);s.z=r3(s.z+dz);return{rebuild:true};},
+  handles:s=>{const r=Layout.stairRect(s);return[handleAt(r.x0,.6,s.z),handleAt(r.x1,.6,s.z),handleAt(s.x,.6,r.z0),handleAt(s.x,.6,r.z1)];},
+  dragHandle:(s,i,p)=>{
+    const r=Layout.stairRect(s),MIN=.3;
+    if(i===0)r.x0=Math.min(snap5(p.x),r.x1-MIN);else if(i===1)r.x1=Math.max(snap5(p.x),r.x0+MIN);
+    else if(i===2)r.z0=Math.min(snap5(p.z),r.z1-MIN);else r.z1=Math.max(snap5(p.z),r.z0+MIN);
+    const dx=r.x1-r.x0,dz=r.z1-r.z0,odd=s.r%2===1;
+    s.w=Math.min(STAIR.maxWidth,Math.max(STAIR.minWidth,odd?dz:dx));s.d=Math.min(STAIR.maxLength,Math.max(STAIR.minLength,odd?dx:dz));
+    s.x=r3((r.x0+r.x1)/2);s.z=r3((r.z0+r.z1)/2);}
+});
+
 /* ---- barra de selección ---- */
 function renderSelbar(s){
   const bar=$('selbar'),rec=s&&engine.selectedRecord;
@@ -902,7 +1007,24 @@ function openingTool(kind){
     end:()=>{ghost=null;clearPreview();}
   };
 }
-const TOOLS={wall:wallTool,room:roomTool,door:openingTool('door'),window:openingTool('window')};
+let stairTurn=0,stairAim=null;
+function previewStair(p){
+  if(p)stairAim=p;
+  if(!stairAim)return;
+  clearPreview();
+  const s={x:snap5(stairAim.x),z:snap5(stairAim.z),w:STAIR.width,d:STAIR.length,r:stairTurn},r=Layout.stairRect(s);
+  B(previewG,r.x0,r.x1,0,.05,r.z0,r.z1,PREVIEW_OK,false);
+  lengthLabel(`${CLIMB_ARROWS[s.r]} ${f2(s.w)} × ${f2(s.d)} m · R para girar`,s.x,s.z);
+}
+const stairTool={
+  hover:p=>previewStair(p),move:p=>previewStair(p),down:p=>previewStair(p),
+  up:p=>{
+    clearPreview();if(!p||!hasLevelAbove())return;
+    const s={id:nextId('st'),x:snap5(p.x),z:snap5(p.z),w:STAIR.width,d:STAIR.length,r:stairTurn};
+    state.layout.stairs.push(s);buildStruct();engine.changed({kind:'stair',id:s.id});},
+  end:()=>{stairAim=null;clearPreview();}
+};
+const TOOLS={wall:wallTool,room:roomTool,door:openingTool('door'),window:openingTool('window'),stair:stairTool};
 
 /* ---- modos ---- */
 const HINTS={
@@ -912,7 +1034,8 @@ const HINTS={
   wall:'Muro: arrastra de un punto a otro (se alinea solo) · Esc para salir',
   room:'Habitación: arrastra de una esquina a la opuesta; después escribe las medidas exactas abajo · Esc para salir',
   door:'Puerta: pasa el cursor sobre un muro y haz clic para colocarla · Esc para salir',
-  window:'Ventana: pasa el cursor sobre un muro y haz clic para colocarla · Esc para salir'
+  window:'Ventana: pasa el cursor sobre un muro y haz clic para colocarla · Esc para salir',
+  stair:'Escalera: haz clic donde empieza abajo · R la gira · abre el piso del nivel de arriba · Esc para salir'
 };
 const toolName=()=>Object.keys(TOOLS).find(k=>TOOLS[k]===engine.tool)||'select';
 function syncModeUI(){
@@ -925,16 +1048,23 @@ function syncModeUI(){
 }
 function renderEmpty(){
   $('empty').hidden=!(Layout.isEmpty(state.layout)&&!state.items.length&&engine.mode!=='navigate'&&!engine.tool&&!REMOTE_ID);
+  $('emptyCopy').hidden=state.level<1;
 }
 seg($('modes'),engine.setMode);
-seg($('tools'),v=>engine.setTool(TOOLS[v]||null));
+seg($('tools'),v=>{
+  if(v==='stair'&&!hasLevelAbove()){showToast('Agrega un nivel arriba para conectarlo con una escalera.');engine.setTool(null);syncModeUI();return;}
+  engine.setTool(TOOLS[v]||null);
+});
 $('emptyRoom').onclick=()=>{engine.setMode('build');engine.setTool(TOOLS.room);};
 $('emptyWall').onclick=()=>{engine.setMode('build');engine.setTool(TOOLS.wall);};
+$('emptyCopy').onclick=()=>{Levels.copyStructure(state,state.level-1,nextId);save();buildStruct();renderEmpty();};
 addEventListener('keydown',e=>{
   if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
   const m={'1':'navigate','2':'build','3':'sculpt'}[e.key];
   if(m){engine.setMode(m);return;}
   if(e.key==='Escape'){if(engine.tool)engine.setTool(null);else engine.select(null);}
+  if(e.key.toLowerCase()==='r'&&engine.tool===stairTool){stairTurn=(stairTurn+1)%4;previewStair();}
+  if(e.key==='PageUp'||e.key==='PageDown'){e.preventDefault();openLevel(state.level+(e.key==='PageUp'?1:-1));}
 });
 
 /* ================= cámaras ================= */
@@ -945,9 +1075,11 @@ const camList=()=>state.layout.tag==='house'
   ?[['planta','Planta 3D'],['entrada','Cuarto desde la entrada'],['cuarto2','Cuarto hacia el pasillo'],['pasillo','Pasillo'],['bano','Baño']]
   :[['planta','Planta'],['iso','Perspectiva']];
 function renderCams(){$('cam').innerHTML=camList().map(([k,n])=>`<button data-v="${k}" aria-pressed="${k===camKey}">${n}</button>`).join('');}
-function topHide(){structG.traverse(o=>{if(o.userData.top)o.visible=!isOverview();if(o.userData.plan)o.visible=camKey==='planta';});}
+function topHide(){
+  for(const root of[structG,othersG])root.traverse(o=>{if(o.userData.top)o.visible=!isOverview();if(o.userData.plan)o.visible=camKey==='planta';});
+}
 function viewFrame(){
-  const F=Layout.frame(state.layout);
+  const F=Layout.frame(state.layout)||Levels.frame(state);
   return F?{cx:(F.x0+F.x1)/2,cz:(F.z0+F.z1)/2,w:F.x1-F.x0+5.5,h:F.z1-F.z0+5.5}:{cx:3,cz:3,w:10,h:9};
 }
 function fitPlanta(){
@@ -1111,7 +1243,8 @@ function renderVanos(){
     $(id).addEventListener('input',e=>{$('o_'+id).textContent=f2(e.target.value)+' m';});
   }
 }
-const RENDER={estilo:renderStyle,muebles:renderMuebles,paredes:renderWalls,pisos:renderPisos,vanos:renderVanos,cantidades:renderCantidades,planos:renderPlanos};
+const planIsBlank=()=>Levels.list(state).every(l=>Layout.isEmpty(l.layout)&&!l.items.length);
+const RENDER={niveles:renderNiveles,estilo:renderStyle,muebles:renderMuebles,paredes:renderWalls,pisos:renderPisos,vanos:renderVanos,cantidades:renderCantidades,planos:renderPlanos};
 function renderTab(){RENDER[tab]();}
 $('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.t;
   $('tabs').querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));for(const t of Object.keys(RENDER))$('p-'+t).hidden=t!==tab;
@@ -1122,8 +1255,71 @@ $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(JSON.stringi
   catch(e){showToast('No se pudo copiar automáticamente.');}};
 $('reset').onclick=()=>{$('resetConfirm').hidden=false;};
 $('resetNo').onclick=()=>{$('resetConfirm').hidden=true;};
-$('resetYes').onclick=()=>{state=defaultState();engine.select(null);save();applyMetalWood();buildStruct();buildItems();renderStyle();$('resetConfirm').hidden=true;
+$('resetYes').onclick=()=>{state=defaultState();engine.select(null);save();applyMetalWood();buildStruct();buildItems();renderLevels();renderStyle();$('resetConfirm').hidden=true;
   $('tabs').querySelector('[data-t="estilo"]').click();};
+
+/* ================= niveles ================= */
+const persistView=()=>{if(!REMOTE_ID)plans.save(state);};
+function pruneItems(){
+  state.items=state.items.filter(i=>LIB[i.t]);
+  for(const l of state.levels)if(l.items)l.items=l.items.filter(i=>LIB[i.t]);
+}
+function renderLevels(){
+  const upper=hasLevelAbove()?`<button data-v="upper" aria-pressed="${showUpper}" title="Mostrar los niveles de arriba">Ver arriba</button>`:'';
+  $('levels').innerHTML=Levels.list(state).map(l=>`<button data-v="${l.index}" aria-pressed="${l.index===state.level}">${esc(l.name)}</button>`).join('')+upper+
+    '<button class="edit" data-v="add" aria-label="Añadir un nivel arriba">+ Nivel</button>';
+}
+function afterLevelChange(){
+  if(!camList().some(([k])=>k===camKey))camKey='planta';
+  buildStruct();buildItems();renderLevels();renderTab();renderEmpty();setCam(camKey);
+}
+function openLevel(i){
+  if(i<0||i>=Levels.count(state))return;
+  engine.setTool(null);engine.select(null);selWall=null;selFloor=null;
+  if(Levels.switchTo(state,i)){persistView();afterLevelChange();}
+}
+function addLevel(){
+  const i=Levels.add(state,nextId);
+  if(i<0){showToast(`Un plano admite hasta ${Levels.MAX_LEVELS} niveles.`);return;}
+  save();openLevel(i);
+}
+function removeLevel(i){
+  engine.setTool(null);engine.select(null);selWall=null;selFloor=null;
+  if(!Levels.remove(state,i))return;
+  pendingLevelDelete=null;save();afterLevelChange();
+}
+function toggleUpper(){showUpper=!showUpper;renderLevels();buildOthers();if(tab==='niveles')renderNiveles();}
+$('levels').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.v==='add')addLevel();else if(b.dataset.v==='upper')toggleUpper();else openLevel(+b.dataset.v);
+});
+let pendingLevelDelete=null;
+function renderNiveles(){
+  const levels=Levels.list(state);
+  $('p-niveles').innerHTML=`<div><h3>Niveles</h3><div class="plans">${levels.map(l=>`<div><div class="lvrow ${l.index===state.level?'on':''}" data-i="${l.index}">
+      <input type="text" value="${esc(l.name)}" maxlength="${Levels.NAME_MAX}" aria-label="Nombre del nivel ${l.index+1}">
+      <button class="btn" data-a="open" ${l.index===state.level?'disabled':''}>${l.index===state.level?'Abierto':'Abrir'}</button>
+      <button class="btn" data-a="del" ${levels.length<2?'disabled':''} aria-label="Eliminar ${esc(l.name)}">Eliminar</button></div>
+      ${pendingLevelDelete===l.id?`<div class="foot" data-i="${l.index}"><span class="note">Se borran sus muros, muebles y la escalera que llega a él.</span><button class="btn on" data-a="delYes">Sí, eliminar</button><button class="btn" data-a="delNo">Cancelar</button></div>`:''}</div>`).join('')}</div>
+    <div class="foot" style="margin-top:8px"><button class="btn on" id="lvAdd">Añadir un nivel arriba</button></div></div>
+    <label class="note" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="lvUpper" ${showUpper?'checked':''}> Mostrar los niveles de arriba</label>
+    <p class="note">Cada nivel mide ${f2(H)} m de alto más ${f2(Levels.SLAB)} m de losa. La escalera se dibuja en el nivel de abajo y abre el piso del de arriba. Con PgArriba y PgAbajo cambias de nivel.</p>`;
+  $('lvAdd').onclick=addLevel;
+  $('lvUpper').onchange=toggleUpper;
+  const box=$('p-niveles');
+  box.onclick=e=>{
+    const b=e.target.closest('button[data-a]');if(!b)return;
+    const i=+b.closest('[data-i]').dataset.i;
+    if(b.dataset.a==='open')openLevel(i);
+    else if(b.dataset.a==='del'){pendingLevelDelete=state.levels[i].id;renderNiveles();}
+    else if(b.dataset.a==='delNo'){pendingLevelDelete=null;renderNiveles();}
+    else if(b.dataset.a==='delYes')removeLevel(i);
+  };
+  box.onchange=e=>{
+    const input=e.target.closest('input[type=text]');if(!input)return;
+    Levels.rename(state,+input.closest('[data-i]').dataset.i,input.value);save();renderLevels();renderNiveles();
+  };
+}
 
 /* ================= deshacer y rehacer ================= */
 function syncUndoUI(){
@@ -1134,10 +1330,10 @@ function restoreSnapshot(snapshot){
   restoring=true;
   state=normalizeState(snapshot);
   syncCustomLib();
-  state.items=state.items.filter(i=>LIB[i.t]);
+  pruneItems();
   if(!faceList().some(f=>f.id===selWall))selWall=null;
   if(!state.layout.floors.some(f=>f.id===selFloor))selFloor=null;
-  applyMetalWood();buildStruct();buildItems();renderTab();renderEmpty();
+  applyMetalWood();buildStruct();buildItems();renderLevels();renderTab();renderEmpty();
   save();
   restoring=false;
   syncUndoUI();need=true;
@@ -1162,7 +1358,7 @@ const money=n=>n.toLocaleString('es',{minimumFractionDigits:2,maximumFractionDig
 const quantityOptions=()=>({lib:LIB,floorNames:Object.fromEntries(Object.entries(FLOORS).map(([k,F])=>[k,F.n]))});
 
 function renderCantidades(){
-  const empty=Layout.isEmpty(state.layout)&&!state.items.length;
+  const empty=planIsBlank();
   if(empty){$('p-cantidades').innerHTML='<p class="note">Todavía no hay nada que medir. Dibuja una habitación y aquí aparecen las áreas, los acabados y el presupuesto.</p>';return;}
   const q=Quantities.compute(state,quantityOptions()),readOnly=isReadOnly(),cur=esc(state.currency);
   let section='';
@@ -1196,7 +1392,7 @@ function renderCantidades(){
 }
 
 let modelTimer=null;
-Models.onReady(()=>{clearTimeout(modelTimer);modelTimer=setTimeout(()=>{buildItems();need=true;},60);});
+Models.onReady(()=>{clearTimeout(modelTimer);modelTimer=setTimeout(()=>{buildItems();buildOthers(true);need=true;},60);});
 
 /* ================= exportar dibujo ================= */
 const exportOptions={paper:'A3',scale:'auto'};
@@ -1217,7 +1413,7 @@ function download(bytes,filename,type){
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes],{type}));a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 function wireExport(){
-  const empty=Layout.isEmpty(state.layout)&&!state.items.length;
+  const empty=planIsBlank();
   const info=()=>{
     if(empty){$('exInfo').textContent='Dibuja algo para poder exportarlo.';return;}
     const s=Export.sheet(Drawing.build(state,LIB),exportOptions);
@@ -1251,8 +1447,9 @@ function captureThumb(){
 
 function loadPlan(plan){
   state=normalizeState(plan.state);syncCustomLib();planHistory.reset(state);syncUndoUI();pendingDelete=null;selWall=null;selFloor=null;engine.select(null);
+  pruneItems();
   if(!camList().some(([k])=>k===camKey))camKey='planta';
-  applyMetalWood();buildStruct();buildItems();renderTab();renderPlanTitle();renderEmpty();setCam(camKey);
+  applyMetalWood();buildStruct();buildItems();renderLevels();renderTab();renderPlanTitle();renderEmpty();setCam(camKey);
   clearTimeout(thumbTimer);thumbTimer=setTimeout(captureThumb,900);
 }
 function leavePlan(){clearTimeout(thumbTimer);captureThumb();}
@@ -1272,7 +1469,7 @@ function shareError(r){
 
 function planRow(p){
   const active=p.id===plans.active.id;
-  const meta=p.remote?`Compartido · ${fmtDate(p.updated)}`:`${fmtDate(p.updated)} · ${p.state.items.length} piezas`;
+  const meta=p.remote?`Compartido · ${fmtDate(p.updated)}`:`${fmtDate(p.updated)} · ${Levels.allItems(p.state).length} piezas`;
   return `<div class="plan ${active&&!p.remote?'on':''}" data-id="${esc(p.id)}">
     <button class="open" data-a="open" ${active&&!p.remote?'aria-current="true"':''}>${p.thumb?`<img src="${p.thumb}" alt="">`:'<span class="ph"></span>'}<span><b>${esc(p.name)}</b><small>${meta}</small></span></button>
     ${p.remote?'<span></span>':`<button class="btn" data-a="share" aria-label="Compartir ${esc(p.name)}">Compartir</button>`}
@@ -1350,7 +1547,7 @@ const notShared=new Set();
 // editors and owners send the models a plan uses before its state refers to them
 async function uploadMissingModels(){
   if(!remote||remote.role==='viewer')return;
-  const used=new Set(state.items.map(i=>i.t));
+  const used=new Set(Levels.allItems(state).map(i=>i.t));
   for(const mid of Object.keys(state.models)){
     if(!used.has(mid)||serverModels.has(mid)||notShared.has(mid))continue;
     const bytes=await Models.bytesOf(mid),name=state.models[mid].name;
@@ -1397,10 +1594,12 @@ function renderBanner(){
 }
 
 function applyRemoteData(data){
+  const viewing=state.level;
   state=normalizeState(data.state);syncCustomLib();planHistory.reset(state);syncUndoUI();
-  state.items=state.items.filter(i=>LIB[i.t]);
+  Levels.switchTo(state,Math.min(viewing,Levels.count(state)-1));
+  pruneItems();
   selWall=null;selFloor=null;engine.select(null);
-  applyMetalWood();buildStruct();buildItems();renderTab();renderPlanTitle();need=true;
+  applyMetalWood();buildStruct();buildItems();renderLevels();renderTab();renderPlanTitle();need=true;
 }
 
 function applyRole(role){
@@ -1504,7 +1703,7 @@ function renderShared(){
 /* ================= arranque ================= */
 function resize(){const r=view.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();need=true;}
 new ResizeObserver(resize).observe(view);
-applyMetalWood();buildGrid();buildStruct();buildItems();renderStyle();renderPlanTitle();resize();setCam('planta');syncModeUI();renderEmpty();
+applyMetalWood();buildGrid();buildStruct();buildItems();renderLevels();renderStyle();renderPlanTitle();resize();setCam('planta');syncModeUI();renderEmpty();
 if(REMOTE_ID)bootRemote(REMOTE_ID);
 else if(startup.created&&plans.list().length>1)showToast('Plano nuevo. Tus planos anteriores están en la pestaña Planos.');
 /* ================= navegación con teclado ================= */
