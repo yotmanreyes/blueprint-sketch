@@ -2,5 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "outputDirectory": "src",
-  "rewrites": [{ "source": "/", "destination": "/editor-3d.html" }]
+  "rewrites": [
+    { "source": "/", "destination": "/editor-3d.html" },
+    { "source": "/p/:id", "destination": "/editor-3d.html" }
+  ]
 }
