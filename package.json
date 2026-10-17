@@ -1,0 +1,12 @@
+{
+  "name": "remodelacion-cuarto-bano",
+  "private": true,
+  "type": "module",
+  "description": "Shared plans API for the remodeling editor. The editor itself is static and needs no build.",
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.34.0"
+  }
+}
