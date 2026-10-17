@@ -990,7 +990,7 @@ function spawnPoint(zone){
 function modelsBlock(){
   return `<div><h3>Mis modelos 3D</h3><div class="grid2 lib models" id="mymodels"><p class="note">Cargando…</p></div>
     <div class="foot" style="margin-top:8px"><button class="btn" id="mImport">Importar .glb…</button><input type="file" id="mFile" accept=".glb,model/gltf-binary" multiple hidden></div>
-    <p class="note" style="margin-top:6px">Importa muebles reales en formato .glb (hasta 15 MB). Se guardan en este navegador y sirven para cualquier plano. Si el modelo viene en centímetros o milímetros se ajusta solo; puedes corregir su tamaño en la barra de abajo.</p></div>`;
+    <p class="note" style="margin-top:6px">Importa muebles reales en formato .glb (hasta 15 MB). Se guardan en este navegador y sirven para cualquier plano; al compartir un plano se envían con él (hasta 4 MB cada uno). Si el modelo viene en centímetros o milímetros se ajusta solo; puedes corregir su tamaño en la barra de abajo.</p></div>`;
 }
 async function refreshModels(){
   const box=$('mymodels');if(!box)return;
@@ -1343,6 +1343,35 @@ function renderPlanos(){
 /* ================= plano compartido (ruta /p/<id>) ================= */
 let syncStatus='saved',createdLink=null,confirmRemoteDelete=false,remoteFailed=false;
 
+/* ---- modelos 3D de un plano compartido ---- */
+const MAX_SHARED_MODEL_BYTES=4e6;
+let serverModels=new Set();
+const notShared=new Set();
+// editors and owners send the models a plan uses before its state refers to them
+async function uploadMissingModels(){
+  if(!remote||remote.role==='viewer')return;
+  const used=new Set(state.items.map(i=>i.t));
+  for(const mid of Object.keys(state.models)){
+    if(!used.has(mid)||serverModels.has(mid)||notShared.has(mid))continue;
+    const bytes=await Models.bytesOf(mid),name=state.models[mid].name;
+    if(!bytes){notShared.add(mid);continue;}
+    if(bytes.byteLength>MAX_SHARED_MODEL_BYTES){notShared.add(mid);showToast(`«${name}» pesa más de 4 MB y no se comparte: las demás personas verán una caja en su lugar.`);continue;}
+    const r=await Sharing.uploadModel(REMOTE_ID,mid,bytes);
+    if(r.ok)serverModels.add(mid);
+    else if([400,409,413,415].includes(r.status)){notShared.add(mid);showToast(`No se pudo compartir «${name}».`);}
+  }
+}
+// everyone else downloads the models they do not have yet, once, and keeps them for this plan
+async function fetchSharedModels(){
+  for(const mid of Object.keys(state.models)){
+    await Models.ensure(mid);
+    if(Models.stateOf(mid)!=='missing'||!serverModels.has(mid))continue;
+    const r=await Sharing.downloadModel(REMOTE_ID,mid),m=state.models[mid];
+    if(!r.ok||!m)continue;
+    try{await Models.store(mid,m.name,{w:m.w,d:m.d,h:m.h},r.bytes,{source:REMOTE_ID});}catch(e){}
+  }
+}
+
 function showRemoteMessage(title,text,buttons=[]){
   const box=$('remoteMsg');
   box.hidden=!title;
@@ -1394,7 +1423,8 @@ async function bootRemote(id){
   remote=Sharing.session(id,{
     getState:()=>state,
     onStatus:s=>{syncStatus=s;renderBadge();renderBanner();if(tab==='planos'&&s==='denied')renderPlanos();},
-    onRemote:data=>{applyRemoteData(data);renderBadge();}
+    beforeSave:uploadMissingModels,
+    onRemote:data=>{serverModels=new Set(data.models||[]);applyRemoteData(data);fetchSharedModels();renderBadge();}
   });
   const r=await remote.load();
   if(!r.ok){
@@ -1404,7 +1434,8 @@ async function bootRemote(id){
     remote=null;return;
   }
   showRemoteMessage('');
-  applyRemoteData(r.data);applyRole(remote.role);setCam('planta');renderBadge();syncModeUI();
+  serverModels=new Set(r.data.models||[]);
+  applyRemoteData(r.data);applyRole(remote.role);fetchSharedModels().then(uploadMissingModels);setCam('planta');renderBadge();syncModeUI();
   document.querySelector('[data-t="planos"]').click();
   remote.start();
 }

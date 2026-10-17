@@ -54,6 +54,19 @@ const Sharing=(()=>{
   const links=id=>call('GET',`/api/plans/${id}/links`,{token:tokenFor(id)});
   const createLink=(id,role,label)=>call('POST',`/api/plans/${id}/links`,{token:tokenFor(id),body:{role,label}});
   const revokeLink=(id,lid)=>call('DELETE',`/api/plans/${id}/links/${lid}`,{token:tokenFor(id)});
+  // 3D model files travel as raw bytes next to the plan
+  async function uploadModel(id,mid,bytes){
+    try{
+      const res=await fetch(`/api/plans/${id}/models/${mid}`,{method:'PUT',cache:'no-store',headers:{'Content-Type':'application/octet-stream',Authorization:'Bearer '+tokenFor(id)},body:bytes});
+      return{ok:res.ok,status:res.status};
+    }catch(e){return{ok:false,status:0};}
+  }
+  async function downloadModel(id,mid){
+    try{
+      const res=await fetch(`/api/plans/${id}/models/${mid}`,{headers:{Authorization:'Bearer '+tokenFor(id)}});
+      return res.ok?{ok:true,bytes:await res.arrayBuffer()}:{ok:false,status:res.status};
+    }catch(e){return{ok:false,status:0};}
+  }
   const remove=async id=>{const r=await call('DELETE',`/api/plans/${id}`,{token:tokenFor(id)});if(r.ok)forget(id);return r;};
 
   // live connection to one shared plan: autosave, change polling and conflict handling
@@ -80,6 +93,7 @@ const Sharing=(()=>{
     async function flush(keepalive=false){
       if(!dirty||saving||conflict||role==='viewer')return;
       saving=true;status('saving');
+      if(hooks.beforeSave&&!keepalive){try{await hooks.beforeSave();}catch(e){}}
       const sent=editRev,body={state:hooks.getState(),baseVersion:version};
       if(nameDirty)body.name=name;
       const r=await call('PUT',`/api/plans/${id}`,{token:token(),body,keepalive});
@@ -136,5 +150,5 @@ const Sharing=(()=>{
       get role(){return role;},get name(){return name;},get version(){return version;}};
   }
 
-  return{ROLE_NAMES,routeId,hasToken,tokenFor,adoptFragmentToken,shareUrl,known,remember,forget,create,links,createLink,revokeLink,remove,session};
+  return{uploadModel,downloadModel,ROLE_NAMES,routeId,hasToken,tokenFor,adoptFragmentToken,shareUrl,known,remember,forget,create,links,createLink,revokeLink,remove,session};
 })();

@@ -42,8 +42,9 @@ const Models=(()=>{
   }
   const readRecord=id=>run('readonly',s=>s.get(id));
   const writeRecord=record=>run('readwrite',s=>s.put(record));
-  const meta=({id,name,w,d,h,bytes,thumb,added})=>({id,name,w,d,h,bytes,thumb,added});
-  const list=async()=>(await run('readonly',s=>s.getAll())||[]).map(meta).sort((a,b)=>b.added-a.added);
+  const meta=({id,name,w,d,h,bytes,thumb,added,source})=>({id,name,w,d,h,bytes,thumb,added,source});
+  // models that came with someone else's plan are kept for that plan only and stay out of the library
+  const list=async()=>(await run('readonly',s=>s.getAll())||[]).filter(r=>!r.source).map(meta).sort((a,b)=>b.added-a.added);
 
   /* ---------- parsing ---------- */
   function loader(){
@@ -99,15 +100,23 @@ const Models=(()=>{
     holder.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
     parsed.set(id,holder);status.set(id,'ready');
   }
-  async function ensure(id){
-    if(status.has(id))return;                         // ready, loading, missing and broken models are not retried
+  const pending=new Map();
+  // resolves when the model is ready, missing or broken; callers that start a load and callers that wait share it
+  function ensure(id){
+    if(pending.has(id))return pending.get(id);
+    if(status.has(id))return Promise.resolve();
     status.set(id,'loading');
-    try{
-      const record=await readRecord(id);
-      if(!record)status.set(id,'missing');
-      else adopt(id,normalise((await parse(record.data)).scene).holder);
-    }catch(e){status.set(id,'broken');}
-    waiting.forEach(cb=>cb(id));
+    const job=(async()=>{
+      try{
+        const record=await readRecord(id);
+        if(!record)status.set(id,'missing');
+        else adopt(id,normalise((await parse(record.data)).scene).holder);
+      }catch(e){status.set(id,'broken');}
+      pending.delete(id);
+      waiting.forEach(cb=>cb(id));
+    })();
+    pending.set(id,job);
+    return job;
   }
   // a fresh instance if the model is ready (geometry and materials are shared), otherwise null and a load starts
   function instance(id){
@@ -144,10 +153,12 @@ const Models=(()=>{
   }
   const bytesOf=async id=>{const r=await readRecord(id);return r&&r.data;};
   // stores a model that came from somewhere else (a shared plan)
-  async function store(id,name,dims,data){
+  async function store(id,name,dims,data,{source}={}){
+    if(data.byteLength>MAX_FILE_BYTES)throw new Error('too large');
     const holder=normalise((await parse(data)).scene).holder;
-    await writeRecord({id,name,...dims,bytes:data.byteLength,thumb:thumbnail(holder,dims),added:Date.now(),data});
+    await writeRecord({id,name,...dims,bytes:data.byteLength,thumb:thumbnail(holder,dims),added:Date.now(),data,source});
     adopt(id,holder);
+    waiting.forEach(cb=>cb(id));
   }
 
   return{fit,isValidId,cleanName,list,importFile,remove,instance,ensure,stateOf,onReady,bytesOf,store,MAX_FILE_BYTES};
