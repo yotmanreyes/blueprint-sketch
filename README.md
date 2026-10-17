@@ -9,7 +9,7 @@ Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeli
 ## What you can do
 
 - **Draw like a blueprint.** Start from an empty grid and add walls, rooms, doors and windows. Dimensions, wall outlines and room labels are drawn for you.
-- **A layout like a professional editor.** Modes on the top bar, drawing tools on the left, level and view switches on the bottom, panels on the right, and an on-canvas camera pad to move and turn the view.
+- **A layout like a professional editor.** Modes on the top bar, drawing tools on the left, level and view switches on the bottom, panels on the right, and an on-canvas camera pad to move and turn the view. The *Perspectiva* menu lists every view: eight aerial angles by compass point and one view inside each room.
 - **Three modes so nothing moves by accident.**
   - *Navigate* only moves the camera.
   - *Build* selects, moves and draws.

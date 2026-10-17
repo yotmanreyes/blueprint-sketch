@@ -144,6 +144,14 @@ aside .pane:not(:last-child){flex:1}
   #modes button{padding:9px 12px}#modes button .lbl,#modes button kbd{display:none}
   #navpad{grid-template-columns:repeat(3,38px)}#navpad button{height:38px}
 }
+.viewmenu{position:fixed;z-index:6;width:300px;max-height:min(70vh,520px);overflow:auto;padding:12px;display:grid;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.55)}
+.viewmenu h4{margin:0;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.viewmenu button{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 6px;font-size:.8rem;border:1px solid var(--line);background:var(--panel2);border-radius:8px;cursor:pointer}
+.viewmenu button:hover{border-color:var(--muted)}
+.viewmenu button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#1a1209}
+.compass{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.compass span{font-size:1.05rem}
+.roomviews{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .readonly{--rail-w:0px;--rail-h:0px}
 .readonly #tools{display:none!important}
 .readonly #levels .edit,.readonly #undoBtn,.readonly #redoBtn,.readonly aside .pane:last-child,.readonly #modes button:not([data-v="navigate"]),.readonly #tools,.readonly #tabs button:not([data-t="planos"]):not([data-t="cantidades"]),.readonly #selbar,.readonly #empty{display:none!important}
@@ -230,6 +238,8 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
       <div id="resetConfirm" hidden class="foot"><span class="note">¿Borrar todos los cambios?</span><button class="btn on" id="resetYes">Sí, restablecer</button><button class="btn" id="resetNo">Cancelar</button></div>
     </div>
   </aside>
+
+  <div id="viewMenu" class="viewmenu" role="menu" aria-label="Vistas" hidden></div>
 
   <footer class="status">
     <div class="group"><span>Nivel</span><div class="seg" id="levels" role="group" aria-label="Nivel"></div></div>
@@ -460,7 +470,7 @@ function slab(g,ax,c,t,a0,a1,y0,y1,mat,shadow=true){return ax==='x'?B(g,a0,a1,y0
 
 const FACE_GAP=.006;
 const faceSpec=id=>state.walls[id]||state.wallBase;
-const isOverview=()=>camKey==='planta'||camKey==='iso';
+const isOverview=()=>camKey==='planta'||camKey.startsWith('iso:');
 
 const HIT_PROXY=new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false});
 function buildOpening(g,o,w){
@@ -1148,11 +1158,48 @@ addEventListener('keydown',e=>{
 /* ================= cámaras ================= */
 const HOUSE_CAMS={entrada:{p:[3.15,1.55,7.75],t:[1.4,1.1,4.6]},cuarto2:{p:[.45,1.55,7.6],t:[3.2,1.1,4.1]},pasillo:{p:[3.45,1.5,3.85],t:[3.2,1.1,0]},
   bano:{p:[2.55,1.6,3.75],t:[.6,1.0,.8]}};
-const CAMS={...HOUSE_CAMS},CAM_FOV={planta:42,iso:50},PLAN_TILT=.1;
-const camList=()=>state.layout.tag==='house'
-  ?[['planta','Planta 3D'],['entrada','Cuarto desde la entrada'],['cuarto2','Cuarto hacia el pasillo'],['pasillo','Pasillo'],['bano','Baño']]
-  :[['planta','Planta'],['iso','Perspectiva']];
-function renderCams(){$('cam').innerHTML=camList().map(([k,n])=>`<button data-v="${k}" aria-pressed="${k===camKey}">${n}</button>`).join('');}
+const CAMS={...HOUSE_CAMS},PLAN_TILT=.1,EYE_HEIGHT=1.55;
+const HOUSE_VIEWS=[['entrada','Cuarto desde la entrada'],['cuarto2','Cuarto hacia el pasillo'],['pasillo','Pasillo'],['bano','Baño']];
+// aerial views are named by the side the camera stands on (z grows towards the south)
+const AERIAL=[['no','Noroeste','↖',-1,-1],['n','Norte','↑',0,-1],['ne','Noreste','↗',1,-1],['o','Oeste','←',-1,0],null,['e','Este','→',1,0],['so','Suroeste','↙',-1,1],['s','Sur','↓',0,1],['se','Sureste','↘',1,1]];
+const DEFAULT_AERIAL='iso:se';
+const camFov=k=>k==='planta'?42:k.startsWith('iso:')?50:72;
+function camValid(k){
+  if(k==='planta')return true;
+  if(k.startsWith('iso:'))return AERIAL.some(a=>a&&'iso:'+a[0]===k);
+  if(k.startsWith('room:'))return state.layout.floors.some(f=>'room:'+f.id===k);
+  return state.layout.tag==='house'&&HOUSE_VIEWS.some(([key])=>key===k);
+}
+function camName(k){
+  if(k==='planta')return 'Planta';
+  if(k.startsWith('iso:'))return'Desde el '+AERIAL.find(a=>a&&'iso:'+a[0]===k)[1].toLowerCase();
+  if(k.startsWith('room:')){const f=state.layout.floors.find(x=>'room:'+x.id===k);return'Dentro de '+(f&&f.name||'la habitación');}
+  return(HOUSE_VIEWS.find(([key])=>key===k)||[,'Vista'])[1];
+}
+function renderCams(){
+  $('cam').innerHTML=`<button data-v="planta" aria-pressed="${camKey==='planta'}">Planta</button>`+
+    `<button data-v="views" aria-pressed="${camKey!=='planta'}" aria-haspopup="true" aria-expanded="${!$('viewMenu').hidden}">${camKey==='planta'?'Perspectiva':esc(camName(camKey))} ▾</button>`;
+}
+function viewMenuHtml(){
+  const button=(k,label)=>`<button data-v="${esc(k)}" aria-pressed="${k===camKey}" role="menuitem">${label}</button>`;
+  const rooms=state.layout.floors.map(f=>button('room:'+f.id,esc(f.name||'Piso'))).join('');
+  return`<h4>Desde arriba</h4><div class="compass">${AERIAL.map(a=>a?button('iso:'+a[0],`<span>${a[2]}</span>${a[1]}`):'<i></i>').join('')}</div>`+
+    (rooms?`<h4>Dentro de</h4><div class="roomviews">${rooms}</div>`:'')+
+    (state.layout.tag==='house'?`<h4>Vistas de la casa de ejemplo</h4><div class="roomviews">${HOUSE_VIEWS.map(([k,n])=>button(k,esc(n))).join('')}</div>`:'');
+}
+function closeViewMenu(){$('viewMenu').hidden=true;renderCams();}
+function toggleViewMenu(anchor){
+  const menu=$('viewMenu');
+  if(!menu.hidden){closeViewMenu();return;}
+  menu.innerHTML=viewMenuHtml();menu.hidden=false;
+  const r=anchor.getBoundingClientRect();
+  menu.style.left=Math.max(8,Math.min(r.left,innerWidth-menu.offsetWidth-8))+'px';
+  menu.style.bottom=(innerHeight-r.top+8)+'px';
+  renderCams();
+}
+$('viewMenu').addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(!b)return;closeViewMenu();setCam(b.dataset.v);});
+addEventListener('pointerdown',e=>{if(!$('viewMenu').hidden&&!e.target.closest('#viewMenu,#cam'))closeViewMenu();});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('viewMenu').hidden)closeViewMenu();});
 function topHide(){
   for(const root of[structG,othersG])root.traverse(o=>{if(o.userData.top)o.visible=!isOverview();if(o.userData.plan)o.visible=camKey==='planta';});
 }
@@ -1161,23 +1208,34 @@ function viewFrame(){
   return F?{cx:(F.x0+F.x1)/2,cz:(F.z0+F.z1)/2,w:F.x1-F.x0+5.5,h:F.z1-F.z0+5.5}:{cx:3,cz:3,w:10,h:9};
 }
 function fitPlanta(){
-  const v=viewFrame(),r=view.getBoundingClientRect(),aspect=r.width/Math.max(r.height,1),t=2*Math.tan(CAM_FOV.planta*Math.PI/360);
+  const v=viewFrame(),r=view.getBoundingClientRect(),aspect=r.width/Math.max(r.height,1),t=2*Math.tan(camFov('planta')*Math.PI/360);
   const d=Math.max(v.h/t,v.w/(t*aspect)),cx=v.cx+v.w*.07;
   CAMS.planta={p:[cx,d*Math.cos(Math.asin(PLAN_TILT)),v.cz+d*PLAN_TILT],t:[cx,0,v.cz]};
 }
-function fitIso(){
-  const v=viewFrame(),d=Math.max(v.w,v.h)*1.1;
-  CAMS.iso={p:[v.cx+d*.55,d*.75,v.cz+d*.7],t:[v.cx,0,v.cz]};
+function fitAerial(k){
+  const v=viewFrame(),d=Math.max(v.w,v.h)*1.1,[,,,dx,dz]=AERIAL.find(a=>a&&'iso:'+a[0]===k),len=Math.hypot(dx,dz),reach=d*.89;
+  CAMS[k]={p:[v.cx+dx/len*reach,d*.75,v.cz+dz/len*reach],t:[v.cx,0,v.cz]};
+}
+// inside a room: from near one corner, at eye height, looking at the middle
+function fitRoom(k){
+  const f=state.layout.floors.find(x=>'room:'+x.id===k),inset=Math.min(.45,f.w/4,f.d/4);
+  CAMS[k]={p:[f.x-f.w/2+inset,EYE_HEIGHT,f.z+f.d/2-inset],t:[f.x,1.0,f.z]};
 }
 function setCam(k){
-  camKey=k;if(k==='planta')fitPlanta();if(k==='iso')fitIso();
+  if(k==='iso')k=DEFAULT_AERIAL;
+  if(!camValid(k))k='planta';
+  camKey=k;if(k==='planta')fitPlanta();else if(k.startsWith('iso:'))fitAerial(k);else if(k.startsWith('room:'))fitRoom(k);
   const c=CAMS[k],over=isOverview();
   camera.position.set(...c.p);controls.target.set(...c.t);
   if(ceil)ceil.visible=!over;if(sky)sky.visible=!over;topHide();
-  camera.fov=CAM_FOV[k]||72;camera.updateProjectionMatrix();controls.update();renderCams();need=true;
+  camera.fov=camFov(k);camera.updateProjectionMatrix();controls.update();renderCams();need=true;
 }
 function seg(el,fn){el.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===t));fn(t.dataset.v);});}
-seg($('cam'),setCam);
+$('cam').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.v==='views'){toggleViewMenu(b);return;}
+  closeViewMenu();setCam(b.dataset.v);
+});
 
 /* ================= paneles ================= */
 const hex=c=>'#'+new THREE.Color(c).getHexString();
@@ -1350,7 +1408,7 @@ function renderLevels(){
 }
 function afterLevelChange(){
   exportLevel=null;
-  if(!camList().some(([k])=>k===camKey))camKey='planta';
+  if(!camValid(camKey))camKey='planta';
   buildStruct();buildItems();renderLevels();renderTab();renderEmpty();setCam(camKey);
 }
 function openLevel(i){
@@ -1535,7 +1593,7 @@ function captureThumb(){
 function loadPlan(plan){
   state=normalizeState(plan.state);syncCustomLib();planHistory.reset(state);syncUndoUI();pendingDelete=null;selWall=null;selFloor=null;engine.select(null);
   pruneItems();
-  if(!camList().some(([k])=>k===camKey))camKey='planta';
+  if(!camValid(camKey))camKey='planta';
   applyMetalWood();buildStruct();buildItems();renderLevels();renderTab();renderPlanTitle();renderEmpty();setCam(camKey);
   clearTimeout(thumbTimer);thumbTimer=setTimeout(captureThumb,900);
 }
