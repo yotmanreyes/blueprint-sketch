@@ -4,7 +4,9 @@ const ID=/^[A-Za-z0-9_-]{1,40}$/;
 const KEY=/^[a-z0-9_]{1,40}$/;
 const COLOR=/^#[0-9a-fA-F]{6}$/;
 const FINISHES=new Set(['pintura','micro','ladrillo','enchape','madera']);
-const MAX={items:500,walls:400,openings:400,floors:100,lights:100,faces:2000};
+const MAX={items:500,walls:400,openings:400,floors:100,lights:100,faces:2000,prices:300};
+const PRICE_KEY=/^[A-Za-z0-9:_.-]{1,60}$/;
+const MAX_PRICE=1e9;
 const LIMIT=1000;
 
 class Invalid extends Error{}
@@ -54,6 +56,16 @@ function light(l){
   return{x:num(l.x,'light'),z:num(l.z,'light'),drop:num(l.drop,'light',0,5)};
 }
 
+function prices(p){
+  if(p===undefined)return{};
+  obj(p,'prices');
+  const keys=Object.keys(p);
+  if(keys.length>MAX.prices)fail('too many prices');
+  const out={};
+  for(const k of keys){if(!PRICE_KEY.test(k))fail('price key');out[k]=num(p[k],'price',0,MAX_PRICE);}
+  return out;
+}
+
 export function cleanState(s){
   obj(s,'state');
   const L=obj(s.layout,'layout'),walls={};
@@ -65,6 +77,7 @@ export function cleanState(s){
     style:typeof s.style==='string'&&KEY.test(s.style)?s.style:'',
     metal:key(s.metal,'metal'),wood:key(s.wood,'wood'),
     walls,wallBase:finish(s.wallBase,'wall base'),
+    prices:prices(s.prices),currency:s.currency===undefined?'$':text(s.currency,'currency',4),
     defaults:{floor:key(obj(s.defaults,'defaults').floor,'default floor')},
     n:num(s.n,'counter',0,1e7),
     items:list(s.items,'items',MAX.items).map(item),

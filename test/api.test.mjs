@@ -53,7 +53,7 @@ const layout = Layout.house({ win: { pos: 4.4, w: 1.2, h: 1.2, sill: .9 }, floor
 const finishes = Object.fromEntries(Layout.faceIds(layout).map(f => [f, { t: 'micro', c: '#bdbab4' }]));
 const state = {
   style: 'ind_concreto', metal: 'negro', wood: 'roble', walls: finishes, wallBase: { t: 'micro', c: '#bdbab4' },
-  defaults: { floor: 'marmol_blanco' }, n: 20, layout,
+  defaults: { floor: 'marmol_blanco' }, n: 20, layout, prices: { wall: 12.5, 'finish:pintura': 3, 'door:0.9x2.1': 150, contingency: 10 }, currency: '$',
   items: [
     { id: 'i1', t: 'ducha', x: .675, z: .525, r: 0 }, { id: 'i2', t: 'sanitario', x: .425, z: 1.75, r: 1 },
     { id: 'i4', t: 'cama140', x: 2.9, z: 5.65, r: 3 }, { id: 'i8', t: 'repisa', x: 1.3, z: 7.8, r: 2, y: 1.35 },
@@ -124,6 +124,9 @@ await bad('NaN coordinates', s => { s.items[0].x = 'abc'; })();
 await bad('huge coordinates', s => { s.layout.walls[0].x1 = 1e9; })();
 await bad('bad face color', s => { s.walls[Object.keys(s.walls)[0]].c = 'red;background:url(x)'; })();
 await bad('unknown finish', s => { s.wallBase.t = '<script>'; })();
+await bad('a negative price', s => { s.prices.wall = -1; })();
+await bad('a price key with markup', s => { s.prices['<img>'] = 1; })();
+await bad('a long currency', s => { s.currency = 'dollars!!'; })();
 await bad('too many items', s => { s.items = Array.from({ length: 600 }, (_, i) => ({ ...state.items[0], id: 'i' + i })); })();
 r = await call(plan, { method: 'PUT', query: { id }, token: owner, body: { baseVersion: 5 } });
 check('missing state is a 400, not a crash', () => assert.equal(r.status, 400));
@@ -132,6 +135,7 @@ const extra = JSON.parse(JSON.stringify(state)); extra.evil = '<script>'; extra.
 r = await call(plan, { method: 'PUT', query: { id }, token: owner, body: { state: extra, baseVersion: 5 } });
 r = await call(plan, { query: { id }, token: owner });
 check('unknown keys are stripped', () => { assert.equal(r.body.state.evil, undefined); assert.equal(r.body.state.items[0].evil, undefined); });
+check('prices and currency survive a round trip', () => { assert.equal(r.body.state.prices['door:0.9x2.1'], 150); assert.equal(r.body.state.currency, '$'); });
 
 // revocation
 r = await call(links, { query: { id }, token: owner });
