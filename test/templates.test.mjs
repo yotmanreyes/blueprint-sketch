@@ -9,9 +9,9 @@ const Levels = new Function('Layout', 'module', src('levels.js') + ';return Leve
 const Templates = new Function('Layout', 'Levels', 'module', src('templates.js') + ';return Templates')(Layout, Levels);
 const { cleanState } = await import('../api/_lib/validate.js');
 
-// the furniture catalogue lives in the editor page; read its sizes from there
-const LIB = new Function(src('editor-3d.html').match(/const LIB=\{[\s\S]*?\n\};/)[0] + ';return LIB')();
-const FLOOR_KEYS = [...src('editor-3d.html').matchAll(/^  ([a-z_]+):\{n:'[^']*'(?:,open:true)?,c:mkCanvas/gm)].map(m => m[1]);
+const Catalog = new Function('module', src('catalog.js') + ';return Catalog')();
+const LIB = Catalog.LIB;
+const FLOOR_KEYS = Catalog.FLOORS.map(f => f[0]);
 
 const blank = () => Levels.ensure({ style: 'moderno', metal: 'cromo', wood: 'clara', walls: {}, wallBase: { t: 'pintura', c: '#f4f3ef' }, n: 0, defaults: { floor: 'marmol_blanco' }, layout: Layout.empty(), items: [] });
 const example = () => Levels.ensure({ style: 'moderno', metal: 'cromo', wood: 'clara', walls: {}, wallBase: { t: 'pintura', c: '#f4f3ef' }, n: 20, defaults: { floor: 'marmol_blanco' }, layout: Layout.house({ win: { pos: 4.4, w: 1.2, h: 1.2, sill: .9 }, floor: { main: 'marmol_blanco', bano: 'marmol_blanco' } }), items: [] });
