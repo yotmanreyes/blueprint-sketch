@@ -176,6 +176,21 @@ aside .pane:not(:last-child){flex:1}
 .readonly #tools{display:none!important}
 .readonly #levels .edit,.readonly #undoBtn,.readonly #redoBtn,.readonly aside .pane:last-child,.readonly #modes button:not([data-v="navigate"]),.readonly #tools,.readonly #tabs button:not([data-t="planos"]):not([data-t="cantidades"]),.readonly #selbar,.readonly #empty{display:none!important}
 #levels button.edit{border-style:dashed}
+.aichat{display:grid;gap:8px;align-content:start;min-height:160px;max-height:46vh;overflow:auto;padding:2px}
+.aimsg{padding:8px 10px;border-radius:10px;font-size:.82rem;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.aimsg.user{background:var(--accent);color:#1a1209;justify-self:end;max-width:88%}
+.aimsg.assistant{background:var(--panel2);border:1px solid var(--line);max-width:94%}
+.aimsg.step{font-family:var(--mono);font-size:.68rem;color:var(--muted);padding:2px 6px;border-left:2px solid var(--line);border-radius:0}
+.aimsg.step.fail{color:#e0786b;border-left-color:#e0786b}
+.aimsg.error{background:rgba(192,57,43,.18);border:1px solid #c0392b}
+.aichips{display:flex;flex-wrap:wrap;gap:6px}
+.aichips button{padding:5px 10px;font-size:.72rem;border:1px solid var(--line);background:var(--panel2);border-radius:99px;cursor:pointer;text-align:left}
+.aichips button:hover{border-color:var(--accent)}
+.aiconfig{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--panel2)}
+.aiconfig summary{cursor:pointer;font-size:.8rem;font-weight:600}
+.aiconfig label{display:grid;gap:3px;font-size:.72rem;color:var(--muted);margin-top:8px}
+.aiconfig label.aiopt{display:flex;gap:6px;align-items:center}
+#aiInput{width:100%;resize:vertical;font:inherit;font-size:.85rem;padding:8px;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px}
 .lyrow{display:grid;grid-template-columns:auto auto 28px 1fr auto auto;gap:6px;align-items:center}
 .lyrow button.tg{width:32px;height:32px;padding:0;display:grid;place-items:center;border:1px solid var(--line);background:var(--panel2);border-radius:8px;cursor:pointer;color:var(--muted)}
 .lyrow button.tg svg{width:18px;height:18px}
@@ -253,6 +268,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
       <button role="tab" data-t="vanos" aria-selected="false">Vanos</button>
       <button role="tab" data-t="niveles" aria-selected="false">Niveles</button>
       <button role="tab" data-t="capas" aria-selected="false">Capas</button>
+      <button role="tab" data-t="ia" aria-selected="false">Asistente</button>
       <button role="tab" data-t="cantidades" aria-selected="false">Cantidades</button>
       <button role="tab" data-t="planos" aria-selected="false">Planos</button>
     </div>
@@ -263,6 +279,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
     <div class="pane" id="p-vanos" hidden></div>
     <div class="pane" id="p-niveles" hidden></div>
     <div class="pane" id="p-capas" hidden></div>
+    <div class="pane" id="p-ia" hidden></div>
     <div class="pane" id="p-cantidades" hidden></div>
     <div class="pane" id="p-planos" hidden></div>
     <div class="pane" style="border-top:1px solid var(--line);max-height:none">
@@ -298,6 +315,8 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 <script src="catalog.js"></script>
 <script src="levels.js"></script>
 <script src="templates.js"></script>
+<script src="agent-tools.js"></script>
+<script src="ai-client.js"></script>
 <script src="plan-store.js"></script>
 <script src="sharing.js"></script>
 <script src="history.js"></script>
@@ -1559,7 +1578,7 @@ function renderVanos(){
   }
 }
 const planIsBlank=()=>Levels.list(state).every(l=>Layout.isEmpty(l.layout)&&!l.items.length);
-const RENDER={capas:renderCapas,niveles:renderNiveles,estilo:renderStyle,muebles:renderMuebles,paredes:renderWalls,pisos:renderPisos,vanos:renderVanos,cantidades:renderCantidades,planos:renderPlanos};
+const RENDER={ia:renderAsistente,capas:renderCapas,niveles:renderNiveles,estilo:renderStyle,muebles:renderMuebles,paredes:renderWalls,pisos:renderPisos,vanos:renderVanos,cantidades:renderCantidades,planos:renderPlanos};
 function renderTab(){RENDER[tab]();}
 $('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.t;
   $('tabs').querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));for(const t of Object.keys(RENDER))$('p-'+t).hidden=t!==tab;
@@ -1572,6 +1591,109 @@ $('reset').onclick=()=>{$('resetConfirm').hidden=false;};
 $('resetNo').onclick=()=>{$('resetConfirm').hidden=true;};
 $('resetYes').onclick=()=>{state=defaultState();engine.select(null);save();applyMetalWood();buildStruct();buildItems();renderLevels();renderStyle();$('resetConfirm').hidden=true;
   $('tabs').querySelector('[data-t="estilo"]').click();};
+
+/* ================= asistente ================= */
+// the model works through the same tools as the MCP server, so it can only build what the editor itself could
+const AI_SETTINGS_KEY='blueprint-sketch-ai',AI_KEYS_KEY='blueprint-sketch-ai-keys';
+const aiRead=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))||fallback;}catch(e){return fallback;}};
+const aiWrite=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch(e){}};
+const ai={settings:{provider:'anthropic',models:{},bases:{},remember:false,...aiRead(AI_SETTINGS_KEY,{})},keys:{},busy:false,controller:null,transcript:[],log:[],draft:''};
+if(ai.settings.remember)ai.keys=aiRead(AI_KEYS_KEY,{});
+function persistAi(){
+  aiWrite(AI_SETTINGS_KEY,ai.settings);
+  try{if(ai.settings.remember)localStorage.setItem(AI_KEYS_KEY,JSON.stringify(ai.keys));else localStorage.removeItem(AI_KEYS_KEY);}catch(e){}
+}
+const aiEnv={get state(){return state;},set state(next){state=normalizeState(next);syncCustomLib();},blank:blankState,example:defaultState};
+const aiSystem=()=>`${Agent.GUIDE}
+
+You are inside the editor: the person watches the plan change while you work. Keep your messages short and say what you did when you finish. Reply in Spanish unless they write in another language. The open level is "${Levels.at(state,state.level).name}".`;
+function applyAgentChange(){
+  pruneItems();engine.select(null);selWall=null;selFloor=null;
+  if(!camValid(camKey))camKey='planta';
+  buildStruct();buildItems();renderLevels();renderEmpty();need=true;
+}
+const AI_SUGGESTIONS=['Dibuja una casa de dos habitaciones, baño, sala y cocina','Amuebla las habitaciones que están vacías','Revisa el plano y corrige los problemas','¿Cuántos metros cuadrados y qué cantidades tiene el plano?'];
+function aiExplain(error){
+  if(error.status===401||error.status===403)return`El proveedor rechazó la clave (${error.message}). Revísala en «Proveedor y clave».`;
+  if(error.status===429)return`El proveedor pide esperar un momento (${error.message}).`;
+  if(error.status===404)return`El proveedor no encontró el modelo o la dirección (${error.message}). Revisa el nombre del modelo.`;
+  return error.message;
+}
+const aiStepLabel=(name,args)=>{const text=JSON.stringify(args);return`${name}${text&&text!=='{}'?' '+(text.length>90?text.slice(0,90)+'…':text):''}`;};
+function renderAiLog(){
+  const box=$('aiLog');if(!box)return;
+  box.innerHTML=ai.log.length?ai.log.map(m=>`<div class="aimsg ${m.kind}${m.failed?' fail':''}">${m.kind==='step'?(m.done?(m.failed?'✗ ':'✓ '):'… ')+esc(m.text):esc(m.text)}</div>`).join(''):
+    '<p class="note">Cuéntale qué quieres construir o cambiar. Trabaja con las mismas herramientas que tú: habitaciones, muros, puertas, escaleras, niveles, muebles en tamaños estándar y capas. Todo lo que haga se puede deshacer de una vez con Ctrl/Cmd+Z.</p>';
+  box.scrollTop=box.scrollHeight;
+}
+function syncAiButtons(){
+  const send=$('aiSend');if(!send)return;
+  send.disabled=ai.busy;$('aiStop').hidden=!ai.busy;$('aiInput').disabled=ai.busy;
+}
+async function aiSend(text){
+  text=text.trim();
+  if(!text||ai.busy||isReadOnly())return;
+  const s=ai.settings,info=AiClient.PROVIDERS[s.provider];
+  ai.log.push({kind:'user',text});ai.transcript.push({role:'user',text});
+  const modeBefore=engine.mode;
+  ai.busy=true;ai.draft='';ai.controller=new AbortController();engine.setLocked(true);
+  renderAiLog();syncAiButtons();
+  let changed=false;
+  try{
+    const result=await AiClient.run({provider:s.provider,apiKey:ai.keys[s.provider]||'',model:s.models[s.provider]||info.model,baseUrl:s.bases[s.provider]||info.base,
+      system:aiSystem(),tools:Agent.definitions(),transcript:ai.transcript,signal:ai.controller.signal,
+      execute:async(name,args)=>{
+        try{
+          const out=Agent.call(aiEnv,name,args);
+          if(out.ok&&Agent.mutates(name)){changed=true;applyAgentChange();}
+          return out;
+        }catch(e){return{ok:false,error:`unexpected error: ${e.message}`};}
+      },
+      onEvent:e=>{
+        if(e.type==='text')ai.log.push({kind:'assistant',text:e.text});
+        else if(e.type==='call')ai.log.push({kind:'step',text:aiStepLabel(e.name,e.args)});
+        else{const step=[...ai.log].reverse().find(m=>m.kind==='step'&&!m.done);if(step){step.done=true;step.failed=!e.ok;if(!e.ok)step.text+=` → ${e.summary}`;}}
+        renderAiLog();
+      }});
+    if(result.stopped==='max-steps')ai.log.push({kind:'error',text:'El asistente llegó al límite de pasos de este mensaje. Escribe «sigue» para que continúe.'});
+  }catch(e){
+    ai.log.push({kind:'error',text:aiExplain(e)});
+    if(ai.transcript.at(-1)&&ai.transcript.at(-1).role==='user')ai.transcript.pop();
+  }finally{
+    ai.busy=false;ai.controller=null;engine.setLocked(isReadOnly());
+    if(!isReadOnly())engine.setMode(modeBefore);
+    if(changed){save();setCam(camKey);renderEmpty();if(tab!=='ia')renderTab();}
+    renderAiLog();syncAiButtons();
+  }
+}
+function renderAsistente(){
+  const s=ai.settings,info=AiClient.PROVIDERS[s.provider],model=s.models[s.provider]??info.model,base=s.bases[s.provider]??info.base;
+  $('p-ia').innerHTML=`<details class="aiconfig" ${ai.keys[s.provider]||s.provider==='compatible'?'':'open'}><summary>Proveedor y clave</summary>
+      <label>Proveedor<select id="aiProvider">${Object.entries(AiClient.PROVIDERS).map(([k,p])=>`<option value="${k}" ${k===s.provider?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label>
+      <label>Modelo<input type="text" id="aiModel" value="${esc(model)}" placeholder="nombre del modelo" autocomplete="off"></label>
+      ${info.needsBase?`<label>Dirección base<input type="text" id="aiBase" value="${esc(base)}" autocomplete="off"></label>`:''}
+      <label>Clave de API${info.needsBase?' (si el servicio la pide)':''}<input type="password" id="aiKey" value="${esc(ai.keys[s.provider]||'')}" autocomplete="off" spellcheck="false"></label>
+      <label class="aiopt"><input type="checkbox" id="aiRemember" ${s.remember?'checked':''}> Recordar la clave en este navegador</label>
+      <div class="foot"><button class="btn" id="aiForget" type="button">Borrar la clave</button></div>
+      <p class="note">La clave se queda en este navegador y solo se envía a ${esc(info.needsBase?'la dirección que indiques':info.name)}; este sitio nunca la ve. El proveedor recibe tus mensajes y los resultados de las herramientas (medidas y elementos del plano). Si no recuerdas la clave, se borra al cerrar la pestaña.</p></details>
+    <div class="aichat" id="aiLog" aria-live="polite"></div>
+    <div class="aichips">${AI_SUGGESTIONS.map(t=>`<button type="button" data-q="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+    <form id="aiForm"><textarea id="aiInput" rows="3" placeholder="Pídele algo al asistente… (Ctrl/Cmd+Enter envía)" aria-label="Mensaje para el asistente">${esc(ai.draft)}</textarea>
+      <div class="foot" style="margin-top:6px"><button class="btn on" id="aiSend" type="submit">Enviar</button><button class="btn" id="aiStop" type="button" hidden>Detener</button><button class="btn" id="aiNew" type="button">Nueva conversación</button></div></form>`;
+  renderAiLog();syncAiButtons();
+  $('aiProvider').onchange=e=>{s.provider=e.target.value;persistAi();renderAsistente();};
+  $('aiModel').onchange=e=>{s.models[s.provider]=e.target.value.trim();persistAi();};
+  if($('aiBase'))$('aiBase').onchange=e=>{s.bases[s.provider]=e.target.value.trim();persistAi();};
+  $('aiKey').onchange=e=>{ai.keys[s.provider]=e.target.value.trim();persistAi();};
+  $('aiRemember').onchange=e=>{s.remember=e.target.checked;persistAi();};
+  $('aiForget').onclick=()=>{delete ai.keys[s.provider];persistAi();renderAsistente();};
+  $('aiInput').addEventListener('input',e=>{ai.draft=e.target.value;});
+  $('aiInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();$('aiForm').requestSubmit();}});
+  $('aiForm').onsubmit=e=>{e.preventDefault();aiSend($('aiInput').value);$('aiInput').value='';};
+  $('aiStop').onclick=()=>{if(ai.controller)ai.controller.abort();};
+  $('aiNew').onclick=()=>{if(ai.busy)return;ai.transcript=[];ai.log=[];renderAiLog();};
+  $('p-ia').querySelector('.aichips').onclick=e=>{const b=e.target.closest('button[data-q]');if(b)aiSend(b.dataset.q);};
+}
 
 /* ================= capas ================= */
 const EYE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';

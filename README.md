@@ -11,6 +11,7 @@ Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeli
 - **Start from a ready-made plan.** A gallery of 30 templates opens with every new workspace: studios, lofts, apartments, cabins and houses (one with a garden and pool), an apartment building, a hotel and an office tower, offices, cafés, restaurants, a shop, a salon and a supermarket, a school, a library, a clinic and a church, a warehouse, a garage and a car park, a park, a playground, a pool club, a sports complex and a gym, or a blank grid. Each one is an ordinary plan to build on.
 - **Draw like a blueprint.** Start from an empty grid and add walls, rooms, doors and windows. Dimensions, wall outlines and room labels are drawn for you.
 - **A layout like a professional editor.** Modes on the top bar, drawing tools on the left, level and view switches on the bottom, panels on the right, and an on-canvas camera pad to move and turn the view. The *Perspectiva* menu lists every view: eight aerial angles by compass point and one view inside each room.
+- **AI agents.** An MCP server and an in-editor assistant let a model of your choice draw plans with the editor's own tools and rules.
 - **Two looks.** *Plano* is the blueprint view; *Fotorrealista* lights the scene with a sky, reflections, a warm sun with soft shadows, fog, plaster walls and relief on the floors, and *Guardar imagen* saves the current view as a PNG.
 - **Three modes so nothing moves by accident.**
   - *Navigate* only moves the camera.
@@ -166,7 +167,9 @@ claude mcp add blueprint-sketch -- node /path/to/blueprint-sketch/mcp/server.mjs
 
 The plan is saved to `BLUEPRINT_PLAN` (default `./blueprint-plan.json`) after every change. Open it in the editor from **Planos → Importar**, or let the agent call `share_plan` to get a link (and `push_plan` / `pull_plan` to keep it in sync). `BLUEPRINT_READONLY=1` lets an agent look but not touch. There is no build step and no extra dependency; it needs Node 22.
 
-The editor also has an **Asistente** tab with the same tools for a model of your choice (OpenAI, Anthropic, Google Gemini or any OpenAI-compatible endpoint) using your own API key.
+### The assistant inside the editor
+
+The **Asistente** tab chats with a model of your choice (OpenAI, Anthropic Claude, Google Gemini, or any OpenAI-compatible endpoint such as OpenRouter, Groq or a local Ollama) using **your own API key**. It works through the same tools as the MCP server, so it can only build what the editor itself could, you watch the plan change as it works, and everything it did in one message is a single undo step. The key stays in your browser (and only if you tick *Recordar*), and requests go straight to the provider: this site never sees them. The provider does receive your messages and the tools' results, which describe the plan.
 
 ## Tests
 
