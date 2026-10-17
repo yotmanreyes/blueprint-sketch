@@ -88,6 +88,12 @@ Los pisos no se mueven arrastrándolos (así se puede girar la cámara sobre ell
 - El modal (`#templates`) se abre al empezar un plano nuevo sin tocar (una vez por plano, guardado en `localStorage`), con *Plantillas* de la barra superior, *Nuevo plano…* de la pestaña Planos y *Ver plantillas* del plano vacío. Sobre un plano sin tocar reemplaza su contenido; si no, crea otro plano.
 - Pisos de exterior (`open: true`: césped, adoquín, arena, agua, pavimento) no llevan cielo.
 
+## Tamaños estándar
+
+- `STD` (en el editor, junto a `LIB`) lista por tipo de pieza los tamaños habituales `[nombre, ancho, fondo]` y los rangos `w`/`d` dentro de los que se puede escribir o arrastrar. `STD_OF` agrupa tipos (las tres camas, los tres clósets). Las piezas que no están (sanitario, silla, auto, farola, caminadora…) no se redimensionan; los modelos importados siguen libres hasta 10 m. `uniform` escala también la altura (árboles, plantas, fuente).
+- El menú *Tamaño* de la barra de selección aplica `applySize`; los campos y las manijas se acotan con `sizeRange`. Un tamaño fuera de la lista se muestra como *Personalizado*. El servidor acepta escalas entre 0,02 y 50.
+- `test/sizes.test.mjs` comprueba que cada tamaño cabe en su rango y que el tamaño con que se dibuja cada pieza está en su lista.
+
 ## Aspecto fotorrealista
 
 - La barra inferior alterna *Plano* y *Fotorrealista* (`setLook`, preferencia en `localStorage`, no va en el plano). `applyLook` cambia, sin tocar los datos: fondo y entorno (un cielo generado con `PMREMGenerator`, uno brillante para el fondo y otro a la mitad para iluminar), niebla, luz del sol (cálida, 4096 px, más alta en `aimSun`), exposición, `near`/`far` de la cámara, el color de `M.struct` (yeso en vez de gris de plano), un suelo grande, y oculta rejilla, cotas y aristas.

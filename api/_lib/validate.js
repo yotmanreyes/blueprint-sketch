@@ -36,7 +36,8 @@ function item(i){
   obj(i,'item');
   const out={id:id(i.id,'item id'),t:key(i.t,'item type'),x:num(i.x,'item x'),z:num(i.z,'item z'),r:num(i.r,'item r',0,3)};
   if(!Number.isInteger(out.r))fail('item r');
-  for(const k of['y','a','sx','sy','sz'])if(i[k]!==undefined)out[k]=num(i[k],'item '+k,-360,LIMIT);
+  for(const k of['y','a'])if(i[k]!==undefined)out[k]=num(i[k],'item '+k,-360,LIMIT);
+  for(const k of['sx','sy','sz'])if(i[k]!==undefined)out[k]=num(i[k],'item '+k,.02,50);
   return withLayer(i,out);
 }
 function wall(w){

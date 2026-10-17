@@ -437,6 +437,38 @@ const LIBGROUPS=[['Guardado',['closet120','closet180','closet240','estante','rep
   ['Estar y decoración',['tv','sofa','sillon','tapete','planta','lampara','espejo','banco']],['Cocina y comedor',['cocina','nevera','mesa','mesacafe','barra']],
   ['Baño',['ducha','sanitario','lavamanos','repisabano']],['Exterior',['arbol','arbusto','farola','bancoparque','mesapicnic','fuente','tumbona','auto']],
   ['Juegos y deporte',['columpio','tobogan','porteria','canasta','caminadora','mancuernas']],['Aulas',['pupitre','pizarra']]];
+/* Standard sizes by kind of piece, [name, width, depth] in metres. `w` and `d` bound what can be typed or dragged, so a piece
+   never becomes absurd; pieces that are not listed (fixtures, chairs, vehicles) keep their size. `uniform` scales all three axes. */
+const STD={
+  cama:{sizes:[['Sencilla',1.1,2.05],['Semidoble',1.3,2.05],['Doble',1.5,2.05],['Queen',1.7,2.05],['King',2.0,2.15]],w:[.9,2.2],d:[1.9,2.3]},
+  closet:{sizes:[.6,.9,1.2,1.5,1.8,2.1,2.4,3.0].map(w=>[`${f2(w)} m`,w,.6]),w:[.5,3.6],d:[.4,.7]},
+  mesanoche:{sizes:[['Pequeña',.4,.35],['Estándar',.45,.4],['Amplia',.55,.45]],w:[.3,.7],d:[.3,.5]},
+  escritorio:{sizes:[['Compacto',1.0,.55],['Estándar',1.4,.6],['Amplio',1.6,.7],['Doble',1.8,.75]],w:[.9,2.2],d:[.5,.9]},
+  mesa:{sizes:[['4 puestos',1.2,.8],['6 puestos',1.6,.9],['8 puestos',2.0,1.0],['10 puestos',2.4,1.0]],w:[1.0,3.0],d:[.7,1.2]},
+  mesacafe:{uniform:true,sizes:[.6,.7,.8,.9,1.0].map(w=>[`Ø ${f2(w)} m`,w,w]),w:[.5,1.2],d:[.5,1.2]},
+  sofa:{sizes:[['2 puestos',1.6,.9],['3 puestos',2.1,.95],['4 puestos',2.6,1.0]],w:[1.4,3.0],d:[.8,1.1]},
+  sillon:{sizes:[['Individual',.85,.85],['Grande',1.0,.95]],w:[.7,1.2],d:[.7,1.1]},
+  tv:{sizes:[1.2,1.6,2.0,2.4].map(w=>[`${f2(w)} m`,w,.4]),w:[1.0,3.0],d:[.3,.5]},
+  estante:{sizes:[['Angosto',.6,.3],['Estándar',.8,.35],['Ancho',1.0,.35],['Amplio',1.2,.4]],w:[.5,1.6],d:[.25,.5]},
+  repisa:{sizes:[.6,.9,1.2,1.5].map(w=>[`${f2(w)} m`,w,.25]),w:[.4,2.0],d:[.15,.35]},
+  repisabano:{sizes:[.4,.6,.8,1.0].map(w=>[`${f2(w)} m`,w,.15]),w:[.3,1.2],d:[.1,.25]},
+  tapete:{sizes:[['Pequeño',1.6,1.1],['Mediano',2.2,1.6],['Grande',2.6,1.9],['Extra grande',3.0,2.0]],w:[1.0,4.0],d:[.7,3.0]},
+  banco:{sizes:[['Corto',.9,.4],['Estándar',1.1,.4],['Largo',1.5,.45]],w:[.7,2.0],d:[.3,.5]},
+  cocina:{sizes:[1.2,1.5,1.8,2.1,2.4].map(w=>[`${f2(w)} m`,w,.6]),w:[.9,3.0],d:[.55,.75]},
+  nevera:{sizes:[['Compacta',.6,.65],['Estándar',.7,.7],['Grande',.9,.75]],w:[.5,1.0],d:[.55,.8]},
+  barra:{sizes:[1.8,2.4,3.0,3.6].map(w=>[`${f2(w)} m`,w,.6]),w:[1.2,4.5],d:[.5,.8]},
+  ducha:{sizes:[['Compacta',.8,.8],['Estándar',.9,.9],['Amplia',1.2,.9],['Grande',1.5,.9]],w:[.7,1.8],d:[.7,1.2]},
+  lavamanos:{sizes:[['Pequeño',.45,.4],['Estándar',.6,.45],['Ancho',.8,.5],['Doble',1.2,.5]],w:[.4,1.4],d:[.35,.6]},
+  bancoparque:{sizes:[1.2,1.5,1.7,2.0].map(w=>[`${f2(w)} m`,w,.55]),w:[1.0,2.4],d:[.45,.7]},
+  mesapicnic:{sizes:[['Pequeña',1.5,1.4],['Estándar',1.8,1.6],['Grande',2.2,1.8]],w:[1.2,2.6],d:[1.2,2.2]},
+  pizarra:{sizes:[1.2,1.8,2.4,3.0].map(w=>[`${f2(w)} m`,w,.08]),w:[1.0,4.0],d:[.06,.12]},
+  planta:{uniform:true,sizes:[['Pequeña',.35,.35],['Mediana',.45,.45],['Grande',.7,.7]],w:[.3,.9],d:[.3,.9]},
+  arbusto:{uniform:true,sizes:[.6,.9,1.3].map(w=>[`${f2(w)} m`,w,w]),w:[.5,1.6],d:[.5,1.6]},
+  arbol:{uniform:true,sizes:[['Joven',1.2,1.2],['Mediano',1.8,1.8],['Grande',2.6,2.6],['Frondoso',3.4,3.4]],w:[1.0,4.0],d:[1.0,4.0]},
+  fuente:{uniform:true,sizes:[['Pequeña',1.6,1.6],['Mediana',2.4,2.4],['Grande',3.2,3.2]],w:[1.4,4.0],d:[1.4,4.0]}
+};
+const STD_OF={cama100:'cama',cama140:'cama',cama160:'cama',closet120:'closet',closet180:'closet',closet240:'closet'};
+const stdOf=type=>STD[STD_OF[type]||type];
 const nextId=prefix=>prefix+(++state.n);
 
 function defaultState(){
@@ -891,8 +923,31 @@ const handleAt=(x,y,z)=>({x,y,z});
 // editable measurements shown in the selection bar; `set` applies a typed value to the record
 const field=(id,label,value,{min,max,step=.01,unit='m',set})=>({id,label,value:+Number(value).toFixed(3),min,max,step,unit,set});
 const MAX_ITEM_SIZE=10,MIN_ITEM_SIZE=.1;
+const resizable=it=>!!(LIB[it.t].custom||stdOf(it.t));
+const sizeRange=(it,axis)=>{const std=stdOf(it.t);return std?std[axis]:[MIN_ITEM_SIZE,MAX_ITEM_SIZE];};
+// a uniform piece (a tree, a plant) keeps its proportions, so its height follows
+function applySize(it,w,d){
+  const L=LIB[it.t],std=stdOf(it.t),set=(key,v)=>{if(Math.abs(v-1)<.002)delete it[key];else it[key]=+v.toFixed(4);};
+  if(std&&std.uniform){const k=w/L.w;set('sx',k);set('sy',k);set('sz',k);}
+  else{set('sx',w/L.w);set('sz',d/L.d);}
+  clampIt(it,true);
+}
+function sizeSelect(it){
+  const std=stdOf(it.t);if(!std)return'';
+  const L=LIB[it.t],w=L.w*(it.sx||1),d=L.d*(it.sz||1),hit=std.sizes.findIndex(([,sw,sd])=>Math.abs(sw-w)<.011&&Math.abs(sd-d)<.011);
+  const options=std.sizes.map(([name,sw,sd],i)=>`<option value="${i}" ${i===hit?'selected':''}>${esc(name)} · ${f2(sw)} × ${f2(sd)}</option>`);
+  if(hit<0)options.unshift(`<option value="-1" selected>Personalizado · ${f2(w)} × ${f2(d)}</option>`);
+  return`<label class="fld">Tamaño<select data-size aria-label="Tamaño estándar">${options.join('')}</select></label>`;
+}
 
 /* ---- muebles ---- */
+// width and depth stay inside what is standard for the kind of piece; a uniform piece has a single size
+function stdFields(it){
+  const L=LIB[it.t],std=stdOf(it.t),[wMin,wMax]=sizeRange(it,'w'),[dMin,dMax]=sizeRange(it,'d');
+  if(std&&std.uniform)return[field('w','Ancho',L.w*(it.sx||1),{min:wMin,max:wMax,set:v=>applySize(it,v,v)})];
+  return[field('w','Ancho',L.w*(it.sx||1),{min:wMin,max:wMax,set:v=>{it.sx=v/L.w;clampIt(it,true);}}),
+    field('d','Fondo',L.d*(it.sz||1),{min:dMin,max:dMax,set:v=>{it.sz=v/L.d;clampIt(it,true);}})];
+}
 engine.define('item',{
   get:itemOf,object:objOf,
   label:it=>LIB[it.t].n,
@@ -901,8 +956,7 @@ engine.define('item',{
       field('x','X',it.x,{min:b.x0,max:b.x1,set:v=>{it.x=v;clampIt(it,true);}}),
       field('z','Z',it.z,{min:b.z0,max:b.z1,set:v=>{it.z=v;clampIt(it,true);}}),
       field('a','Giro',itemAngle(it),{min:-360,max:360,step:1,unit:'°',set:v=>{setItemAngle(it,v);clampIt(it,true);}}),
-      field('w','Ancho',L.w*(it.sx||1),{min:MIN_ITEM_SIZE,max:MAX_ITEM_SIZE,set:v=>{it.sx=v/L.w;clampIt(it,true);}}),
-      field('d','Fondo',L.d*(it.sz||1),{min:MIN_ITEM_SIZE,max:MAX_ITEM_SIZE,set:v=>{it.sz=v/L.d;clampIt(it,true);}})];
+      ...(resizable(it)?stdFields(it):[])];
     if(L.custom)f.push(field('h','Alto',L.h*(it.sy||1),{min:MIN_ITEM_SIZE,max:MAX_ITEM_SIZE,set:v=>{it.sy=v/L.h;}}));
     if(L.elev!=null)f.push(field('y','Altura',it.y??L.elev,{min:0,max:2.1,set:v=>{it.y=v;}}));
     return f;},
@@ -924,13 +978,14 @@ engine.define('item',{
   rotator:it=>{const t=itemAngle(it)*Math.PI/180,d=LIB[it.t].d*(it.sz||1)/2+ROTATOR_GAP;return{x:it.x+Math.sin(t)*d,y:.08,z:it.z+Math.cos(t)*d};},
   rotateTo:(it,rad,free)=>{const deg=rad*180/Math.PI;setItemAngle(it,free?deg:Math.round(deg/ROTATE_STEP)*ROTATE_STEP);clampIt(it);},
   rotateBy:(it,deg)=>{setItemAngle(it,itemAngle(it)+deg);clampIt(it);},
-  handles:it=>{if(it.a)return[];const[hx,hz]=extents(it);return[handleAt(it.x-hx,.6,it.z),handleAt(it.x+hx,.6,it.z),handleAt(it.x,.6,it.z-hz),handleAt(it.x,.6,it.z+hz)];},
+  handles:it=>{if(it.a||!resizable(it)||(stdOf(it.t)&&stdOf(it.t).uniform))return[];const[hx,hz]=extents(it);return[handleAt(it.x-hx,.6,it.z),handleAt(it.x+hx,.6,it.z),handleAt(it.x,.6,it.z-hz),handleAt(it.x,.6,it.z+hz)];},
   dragHandle:(it,i,p)=>{
     const L=LIB[it.t],[hx,hz]=extents(it),even=it.r%2===0;
-    if(i<2){const fixedEdge=i===0?it.x+hx:it.x-hx,edge=snap5(p.x),size=Math.max(.1,Math.abs(edge-fixedEdge));
-      it.x=r3((edge+fixedEdge)/2);if(even)it.sx=size/L.w;else it.sz=size/L.d;}
-    else{const fixedEdge=i===2?it.z+hz:it.z-hz,edge=snap5(p.z),size=Math.max(.1,Math.abs(edge-fixedEdge));
-      it.z=r3((edge+fixedEdge)/2);if(even)it.sz=size/L.d;else it.sx=size/L.w;}}
+    const fit=(size,axis)=>{const[lo,hi]=sizeRange(it,axis);return Math.min(hi,Math.max(lo,size));};
+    if(i<2){const dir=i===0?-1:1,fixedEdge=i===0?it.x+hx:it.x-hx,size=fit(Math.abs(snap5(p.x)-fixedEdge),even?'w':'d');
+      it.x=r3(fixedEdge+dir*size/2);if(even)it.sx=size/L.w;else it.sz=size/L.d;}
+    else{const dir=i===2?-1:1,fixedEdge=i===2?it.z+hz:it.z-hz,size=fit(Math.abs(snap5(p.z)-fixedEdge),even?'d':'w');
+      it.z=r3(fixedEdge+dir*size/2);if(even)it.sz=size/L.d;else it.sx=size/L.w;}}
 });
 
 /* ---- muros ---- */
@@ -1086,11 +1141,17 @@ function renderSelbar(s){
   const others=actions.filter(b=>!moves.includes(b)&&!turns.includes(b)),button=b=>`<button class="btn" data-a="${b.a}"${b.aria?` aria-label="${b.aria}"`:''}>${b.t}</button>`;
   const group=(name,css,list)=>list.length?`<div class="grp ${css}"><span>${name}</span>${list.map(button).join('')}</div>`:'';
   bar.innerHTML=`<b>${s.kind==='item'?iconSvg(rec.t):''}${def.label(rec)}</b><span class="pos">${def.describe(rec)}</span>`+
-    (sculpt?'<span class="note">Arrastra las manijas naranjas para estirar</span>':group('Mover','move',moves)+group('Girar','turn',turns)+group('','',others))+
-    (def.fields?`<div class="fields">${def.fields(rec).map(f=>`<label class="fld">${esc(f.label)}<input type="number" data-f="${f.id}" value="${f.value}" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${esc(f.label)} (${f.unit})"><span>${f.unit}</span></label>`).join('')}${layerSelect(s.kind,rec)}</div>`:'');
+    (sculpt?`<span class="note">${def.handles&&!def.handles(rec).length?'Esta pieza cambia con el tamaño estándar o con los campos de abajo':'Arrastra las manijas naranjas para estirar'}</span>`:group('Mover','move',moves)+group('Girar','turn',turns)+group('','',others))+
+    (def.fields?`<div class="fields">${def.fields(rec).map(f=>`<label class="fld">${esc(f.label)}<input type="number" data-f="${f.id}" value="${f.value}" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${esc(f.label)} (${f.unit})"><span>${f.unit}</span></label>`).join('')}${s.kind==='item'?sizeSelect(rec):''}${layerSelect(s.kind,rec)}</div>`:'');
 }
 $('selbar').addEventListener('click',e=>{const b=e.target.closest('button');if(b)engine.act(b.dataset.a);});
 $('selbar').addEventListener('change',e=>{
+  const pickSize=e.target.closest('select[data-size]');
+  if(pickSize&&engine.selected&&engine.selected.kind==='item'){
+    const it=engine.selectedRecord,size=stdOf(it.t).sizes[+pickSize.value];
+    if(size){applySize(it,size[1],size[2]);buildItems();engine.changed(null);}
+    return;
+  }
   const pick=e.target.closest('select[data-layer]');
   if(pick&&engine.selected){
     const kind=engine.selected.kind,rec=engine.selectedRecord;

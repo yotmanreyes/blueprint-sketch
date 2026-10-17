@@ -131,6 +131,8 @@ await bad('a layer with a bad color', s => { s.layout.layers[0].color = 'red'; }
 await bad('a layer id with markup', s => { s.layout.layers[0].id = '<b>'; })();
 await bad('an element on a layer with markup', s => { s.layout.walls[0].layer = '"><x'; })();
 await bad('too many layers', s => { s.layout.layers = Array.from({ length: 41 }, (_, i) => ({ id: 'c' + i, name: 'x', color: '#ffffff', visible: true, locked: false })); })();
+await bad('a scale of zero', s => { s.items[0].sx = 0; })();
+await bad('an absurd scale', s => { s.items[0].sz = 400; })();
 await bad('too many items', s => { s.items = Array.from({ length: 600 }, (_, i) => ({ ...state.items[0], id: 'i' + i })); })();
 r = await call(plan, { method: 'PUT', query: { id }, token: owner, body: { baseVersion: 5 } });
 check('missing state is a 400, not a crash', () => assert.equal(r.status, 400));
