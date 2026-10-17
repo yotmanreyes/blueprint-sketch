@@ -38,6 +38,8 @@ const PlanStore=(()=>{
       setThumb(url){data.plans[data.active].thumb=url;persist();},
       open(id){if(!data.plans[id])return null;data.active=id;persist();return data.plans[id];},
       add,
+      // marks a plan as uploaded: from then on it is opened through its own route
+      setRemote(id,remote){const p=data.plans[id];if(p){p.remote=remote;persist();}},
       startFresh(makeBlank,isPristine){
         const reusable=this.list().find(p=>isPristine(p.state));
         if(reusable){data.active=reusable.id;persist();return{plan:reusable,created:false};}
