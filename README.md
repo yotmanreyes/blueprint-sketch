@@ -14,7 +14,11 @@ Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeli
   - *Build* selects, moves and draws.
   - *Sculpt* stretches walls, openings, floors and furniture with handles.
 - **Furnish and style.** A library of furniture and accessories, five style presets, wall finishes per side (paint, microcement, brick, tile, wood slats) and floor finishes per room.
+- **Type exact measurements.** Select anything and edit its numbers in the bar below: wall length and thickness, door and window size and position, room width and depth (the walls follow), furniture position, rotation and size.
+- **Undo and redo** every change with `Ctrl/Cmd+Z` and `Ctrl/Cmd+Shift+Z`.
 - **Turn things freely.** Rotate a piece with its handle, `Alt`/`Shift` + scroll, a trackpad twist (Safari) or `Shift` + arrow keys.
+- **Export a drawing to scale.** PDF (vector, with title block) and DXF (millimetres, with layers) on A4, A3 or A2, at an automatic or chosen scale.
+- **Quantities and budget.** Areas per room, net wall surface per finish, floors, doors, windows and furniture, with unit prices, contingency and a CSV for spreadsheets.
 - **Keep several plans.** Plans are saved in your browser with a name and thumbnail; duplicate, rename, export to `.json` and import them back.
 - **Share each plan on its own route.** A shared plan opens at `/p/<id>`. Links carry a role:
 
@@ -38,6 +42,7 @@ Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeli
 | Switch mode | Mode buttons | `1` Navigate, `2` Build, `3` Sculpt |
 | Move a piece | Drag it | Arrow keys (one grid step) |
 | Rotate a piece | Blue handle, `Alt`/`Shift` + scroll | `Shift` + `←` `→` (15°), `Shift` + `↑` `↓` (90°), `R` |
+| Undo / redo | Buttons in the header | `Ctrl/Cmd+Z`, `Ctrl/Cmd+Shift+Z` or `Ctrl+Y` |
 | Leave a tool / deselect | | `Esc` |
 | Delete | | `Delete` |
 
@@ -62,6 +67,10 @@ src/
   editor-3d.html   the editor: scene, panels and wiring
   engine.js        selectable objects, modes, tools, handles, rotation
   layout.js        the plan model: walls, openings, floors, corner joins
+  history.js       undo and redo as snapshots
+  drawing.js       a plan as 2D drawing primitives (walls, door swings, dimensions)
+  export.js        PDF and DXF writers, sheet and scale selection
+  quantities.js    bill of quantities and budget
   plan-store.js    saved plans in the browser, import and export
   sharing.js       share links, autosave, live updates, conflicts
   icons.js         line icons for the furniture library
@@ -124,16 +133,25 @@ npm install
 npm test
 ```
 
-The suite starts a simulated Upstash server and exercises the real handlers: permissions per role, rejection of malformed or hostile plans, version conflicts, revoked and cross-plan links, and rate limits. GitHub Actions runs it on every push and pull request.
+The suite covers:
+
+- the plan model (corner joins, openings that must stay in their wall, resizing a room with its walls),
+- undo and redo,
+- the drawing, the PDF structure (cross-reference table and content length) and the DXF (group pairs, millimetres, layers),
+- the quantities against hand-calculated figures,
+- the shared plans API against a simulated Upstash server: permissions per role, rejection of malformed or hostile plans, version conflicts, revoked and cross-plan links, and rate limits.
+
+GitHub Actions runs it on every push and pull request.
+
+## What it is, and what it is not
+
+Blueprint Sketch is for **schematic design**: quick layouts, conversations with clients and contractors, teaching and prototyping. It is not a BIM or CAD replacement. It has no structural or MEP calculation, no stairs or roofs, no multi-storey buildings, no model import and no photorealistic rendering, and its drawings are not construction documents.
 
 ## Roadmap
 
-- Bills of quantities and budget from the plan (paint, tile, wall and floor area per room).
-- One shared model for the 2D plan and the 3D editor.
-- Export drawings with dimensions as PNG or PDF.
-- Undo and redo.
+- Import 3D models (glTF) to furnish with real products.
+- Several levels, stairs, and curved or diagonal walls.
 - Real internationalisation.
-- Curved and diagonal walls.
 
 ## Contributing
 

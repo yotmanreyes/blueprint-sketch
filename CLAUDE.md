@@ -19,6 +19,14 @@ Sistema de coordenadas, en metros y vista desde arriba: `x` de izquierda a derec
   - **Vanos:** lista de puertas y ventanas; el vano seleccionado se ajusta con sliders (ancho, alto, antepecho, posición en el muro).
   - **Planos:** varios diseños guardados con nombre y miniatura.
 
+## Historial, medidas, exportación y cantidades
+
+- **Deshacer y rehacer** (`src/history.js`): cada `save()` registra una foto del plan (hasta 100). Un arrastre o una edición es un paso. Restaurar vuelve a guardar, sin registrar. Los planos compartidos reinician el historial cuando llegan cambios de otras personas.
+- **Medidas escritas:** cada kind puede definir `fields(rec)`; la barra de selección los muestra como campos numéricos. `clampIt(it, true)` conserva el valor tecleado sin ajustarlo a la rejilla. Cambiar el tamaño de un piso arrastra los muros de sus bordes (`Layout.resizeFloor`).
+- **Exportación:** `Drawing.build(state, LIB)` produce primitivas en metros (capas WALLS, OPENINGS, FURNITURE, ROOMS, DIMENSIONS); `Export.pdf` y `Export.dxf` las escriben a mano, sin librerías. El PDF elige hoja y escala estándar; el DXF va en milímetros con el eje y invertido.
+- **Cantidades** (`src/quantities.js`): áreas por habitación, superficie de muro neta de vanos, acabados por cara, pisos, vanos por tamaño y muebles por tipo. Los precios van en `state.prices` (claves como `wall`, `finish:pintura`, `floor:<clave>`, `door:0.9x2.1`, `item:<tipo>`, `contingency`) y la moneda en `state.currency`; el servidor los valida.
+- Las pruebas (`npm test`) cubren todo esto además de la API.
+
 ## Planos compartidos
 
 Un plano se puede subir a la nube desde la pestaña **Planos** (botón *Compartir*). Cada plano compartido tiene su propia ruta, `/p/<id>`, y el acceso se da con **enlaces por rol** en vez de cuentas:
