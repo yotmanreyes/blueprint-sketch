@@ -109,3 +109,22 @@ test('resizing keeps coordinates tidy instead of leaving floating point noise', 
   for (const w of L.walls) for (const v of [w.x1, w.z1, w.x2, w.z2]) assert.equal(v, +v.toFixed(3));
   assert.equal(Layout.wallById(L, 'n').x2 - Layout.wallById(L, 'n').x1, 6.37);
 });
+
+test('every plan has the base layers, and saved ones keep their state', () => {
+  const L = { walls: [], openings: [], floors: [], layers: [{ id: 'l_walls', name: 'Muros', color: '#9fb3c8', visible: false, locked: true }, { id: 'c1', name: 'Eléctrico', color: '#ff0000', visible: true, locked: false }] };
+  Layout.ensureLayers(L);
+  assert.deepEqual(L.layers.map(l => l.id), ['l_walls', 'l_openings', 'l_floors', 'l_stairs', 'l_items', 'l_dims', 'c1']);
+  assert.equal(L.layers[0].visible, false);
+  assert.ok(Layout.empty().layers.length >= 6);
+});
+
+test('an element is on its base layer unless it names another, and a missing layer falls back', () => {
+  const L = Layout.ensureLayers({ walls: [], openings: [], floors: [], layers: [{ id: 'c1', name: 'Eléctrico', color: '#ff0000', visible: false, locked: true }] });
+  assert.equal(Layout.layerOf(L, 'wall', {}).id, 'l_walls');
+  assert.equal(Layout.layerOf(L, 'wall', { layer: 'c1' }).id, 'c1');
+  assert.equal(Layout.layerOf(L, 'wall', { layer: 'gone' }).id, 'l_walls');
+  assert.equal(Layout.isVisible(L, 'wall', { layer: 'c1' }), false);
+  assert.equal(Layout.isLocked(L, 'item', { layer: 'c1' }), true);
+  assert.equal(Layout.isLocked(L, 'item', {}), false);
+  assert.equal(Layout.dimsVisible(L), true);
+});

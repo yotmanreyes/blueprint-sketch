@@ -30,12 +30,33 @@ const Drawing=(()=>{
     text(s.x+across[0]*(half+.2),s.z+across[1]*(half+.2),label,TEXT_MM.item,'STAIRS');
   }
 
+  // custom layers become their own drawing layers, named for CAD and tinted with the nearest AutoCAD colour
+  const ACI=[[1,255,0,0],[2,255,255,0],[3,0,255,0],[4,0,255,255],[5,0,0,255],[6,255,0,255],[7,255,255,255]];
+  function nearestAci(hex){
+    const n=parseInt(hex.slice(1),16),r=n>>16&255,g=n>>8&255,b=n&255;
+    return ACI.reduce((best,[code,R,G,B])=>{const d=(r-R)**2+(g-G)**2+(b-B)**2;return d<best.d?{d,code}:best;},{d:Infinity,code:7}).code;
+  }
+  const RESERVED=new Set(['WALLS','OPENINGS','STAIRS','FURNITURE','ROOMS','DIMENSIONS']);
+  function layerName(name){
+    const clean=String(name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9_$-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,28)||'CAPA';
+    return RESERVED.has(clean)?'C_'+clean:clean;
+  }
+
   function build(state,lib,level=state.level){
     const lv=Levels.at(state,level),L=lv.layout,prims=[],items=lv.items;
+    // what an element drew belongs to its layer: dropped when the layer is hidden, renamed when it is a custom one
+    const place=(kind,rec,from)=>{
+      const l=Layout.layerOf(L,kind,rec);if(!l)return;
+      if(l.visible===false){prims.length=from;return;}
+      if(Layout.isBaseLayer(l.id))return;
+      const layer=layerName(l.name),aci=nearestAci(l.color);
+      for(let i=from;i<prims.length;i++){prims[i].layer=layer;prims[i].aci=aci;}
+    };
     const line=(x1,z1,x2,z2,layer)=>prims.push({t:'line',x1,z1,x2,z2,layer});
     const text=(x,z,value,mm,layer,bold=false)=>prims.push({t:'text',x,z,text:value,mm,layer,bold});
 
     for(const w of L.walls){
+      const from=prims.length;
       const ax=Layout.axisOf(w),c=Layout.fixed(w),[s0,s1]=Layout.span(w);
       const a0=s0-Layout.endInfo(L,w,'a').ext,a1=s1+Layout.endInfo(L,w,'b').ext;
       const gaps=Layout.opsOf(L,w).sort((p,q)=>p.a-q.a);
@@ -44,15 +65,21 @@ const Drawing=(()=>{
       for(const g of gaps){if(g.a>at+EPS)pieces.push([at,g.a]);at=Math.max(at,g.b);}
       if(a1>at+EPS)pieces.push([at,a1]);
       for(const[p,q]of pieces)prims.push({t:'poly',closed:true,layer:'WALLS',fill:'wall',pts:wallRect(ax,c,w.t,p,q)});
+      place('wall',w,from);
     }
 
     for(const o of L.openings){
       const w=Layout.wallById(L,o.wall);if(!w)continue;
+      const from=prims.length;
+      drawOpening(o,w);
+      place('opening',o,from);
+    }
+    function drawOpening(o,w){
       const h=Layout.isH(w),c=Layout.fixed(w),a=Layout.span(w)[0]+o.pos,b=a+o.w,half=w.t/2;
       const at=(along,across)=>h?[along,c+across]:[c+across,along];
       const seg=(p,q,layer='OPENINGS')=>line(...at(...[p[0],p[1]]),...at(q[0],q[1]),layer);
       seg([a,-half],[a,half]);seg([b,-half],[b,half]);
-      if(o.kind==='window'){for(const k of[-half,0,half])seg([a,k],[b,k]);continue;}
+      if(o.kind==='window'){for(const k of[-half,0,half])seg([a,k],[b,k]);return;}
       const[hx,hz]=at(a,0),leaf=h?[hx,hz+o.w]:[hx+o.w,hz];
       line(hx,hz,leaf[0],leaf[1],'OPENINGS');
       prims.push({t:'arc',cx:hx,cz:hz,r:o.w,a0:0,a1:90,layer:'OPENINGS'});
@@ -60,20 +87,24 @@ const Drawing=(()=>{
 
     for(const it of items){
       const def=lib[it.t];if(!def)continue;
-      const w=def.w*(it.sx||1),d=def.d*(it.sz||1);
+      const from=prims.length,w=def.w*(it.sx||1),d=def.d*(it.sz||1);
       prims.push({t:'poly',closed:true,layer:'FURNITURE',fill:null,pts:itemPolygon(it,w,d)});
       if(Math.min(w,d)>.25)text(it.x,it.z,def.n,TEXT_MM.item,'FURNITURE');
+      place('item',it,from);
     }
 
-    for(const s of L.stairs||[])stairPrims(s,prims,text,'SUBE');
+    for(const s of L.stairs||[]){const from=prims.length;stairPrims(s,prims,text,'SUBE');place('stair',s,from);}
     for(const s of Levels.arriving(state,level))stairPrims(s,prims,text,'BAJA',false);
 
-    for(const f of L.floors){
-      if(f.name)text(f.x,f.z-.15,f.name.toUpperCase(),TEXT_MM.room,'ROOMS',true);
-      text(f.x,f.z+.2,`${comma(f.w*f.d)} m²`,TEXT_MM.area,'ROOMS');
+    if(Layout.dimsVisible(L)){
+      for(const f of L.floors){
+        const from=prims.length;
+        if(f.name)text(f.x,f.z-.15,f.name.toUpperCase(),TEXT_MM.room,'ROOMS',true);
+        text(f.x,f.z+.2,`${comma(f.w*f.d)} m²`,TEXT_MM.area,'ROOMS');
+        place('floor',f,from);
+      }
+      dimensions(L,line,text);
     }
-
-    dimensions(L,line,text);
     return prims;
   }
 

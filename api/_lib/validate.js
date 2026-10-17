@@ -11,6 +11,7 @@ const MODEL_ID=/^m_[a-z0-9]{6,20}$/;
 MAX.models=40;
 MAX.levels=8;
 MAX.stairs=50;
+MAX.layers=40;
 const LIMIT=1000;
 
 class Invalid extends Error{}
@@ -30,36 +31,42 @@ function finish(v,what){
   if(v.c!==undefined){if(typeof v.c!=='string'||!COLOR.test(v.c))fail(what);out.c=v.c;}
   return out;
 }
+const withLayer=(src,out)=>{if(src.layer!==undefined)out.layer=id(src.layer,'layer id');return out;};
 function item(i){
   obj(i,'item');
   const out={id:id(i.id,'item id'),t:key(i.t,'item type'),x:num(i.x,'item x'),z:num(i.z,'item z'),r:num(i.r,'item r',0,3)};
   if(!Number.isInteger(out.r))fail('item r');
   for(const k of['y','a','sx','sy','sz'])if(i[k]!==undefined)out[k]=num(i[k],'item '+k,-360,LIMIT);
-  return out;
+  return withLayer(i,out);
 }
 function wall(w){
   obj(w,'wall');
   const out={id:id(w.id,'wall id'),x1:num(w.x1,'wall'),z1:num(w.z1,'wall'),x2:num(w.x2,'wall'),z2:num(w.z2,'wall'),t:num(w.t,'wall thickness',.02,1)};
   out.faces={};
   for(const side of['lo','hi'])if(w.faces&&w.faces[side]!==undefined)out.faces[side]=id(w.faces[side],'face id');
-  return out;
+  return withLayer(w,out);
 }
 function opening(o){
   obj(o,'opening');
   if(o.kind!=='door'&&o.kind!=='window')fail('opening kind');
-  return{id:id(o.id,'opening id'),wall:id(o.wall,'opening wall'),pos:num(o.pos,'opening',0,LIMIT),w:num(o.w,'opening',.1,LIMIT),
-    h:num(o.h,'opening',.1,10),sill:num(o.sill,'opening',0,10),kind:o.kind};
+  return withLayer(o,{id:id(o.id,'opening id'),wall:id(o.wall,'opening wall'),pos:num(o.pos,'opening',0,LIMIT),w:num(o.w,'opening',.1,LIMIT),
+    h:num(o.h,'opening',.1,10),sill:num(o.sill,'opening',0,10),kind:o.kind});
 }
 function floor(f){
   obj(f,'floor');
-  return{id:id(f.id,'floor id'),x:num(f.x,'floor'),z:num(f.z,'floor'),w:num(f.w,'floor',.1,LIMIT),d:num(f.d,'floor',.1,LIMIT),
-    f:key(f.f,'floor finish'),name:text(f.name||'','floor name',30),zone:text(f.zone||'','floor zone',20)};
+  return withLayer(f,{id:id(f.id,'floor id'),x:num(f.x,'floor'),z:num(f.z,'floor'),w:num(f.w,'floor',.1,LIMIT),d:num(f.d,'floor',.1,LIMIT),
+    f:key(f.f,'floor finish'),name:text(f.name||'','floor name',30),zone:text(f.zone||'','floor zone',20)});
 }
 function stair(s){
   obj(s,'stair');
   const out={id:id(s.id,'stair id'),x:num(s.x,'stair'),z:num(s.z,'stair'),w:num(s.w,'stair',.3,10),d:num(s.d,'stair',1,20),r:num(s.r,'stair r',0,3)};
   if(!Number.isInteger(out.r))fail('stair r');
-  return out;
+  return withLayer(s,out);
+}
+function layerDef(l){
+  obj(l,'layer');
+  if(typeof l.color!=='string'||!COLOR.test(l.color))fail('layer color');
+  return{id:id(l.id,'layer id'),name:text(l.name,'layer name',30),color:l.color,visible:l.visible!==false,locked:l.locked===true};
 }
 function light(l){
   obj(l,'light');
@@ -98,6 +105,7 @@ function layout(L){
     floors:list(L.floors,'floors',MAX.floors).map(floor),
     lights:list(L.lights||[],'lights',MAX.lights).map(light),
     stairs:list(L.stairs||[],'stairs',MAX.stairs).map(stair),
+    layers:list(L.layers||[],'layers',MAX.layers).map(layerDef),
     tag:L.tag==='house'?'house':''
   };
 }

@@ -7,10 +7,10 @@ const Levels=(()=>{
   function ensure(state){
     if(!Array.isArray(state.levels)||!state.levels.length){state.levels=[{id:'l1',name:'Planta baja'}];state.level=0;}
     if(!Number.isInteger(state.level)||state.level<0||state.level>=state.levels.length)state.level=0;
-    state.layout.stairs=state.layout.stairs||[];
+    state.layout.stairs=state.layout.stairs||[];Layout.ensureLayers(state.layout);
     state.levels.forEach((l,i)=>{
       if(i===state.level){delete l.layout;delete l.items;return;}
-      l.layout=l.layout||Layout.empty();l.layout.stairs=l.layout.stairs||[];l.items=l.items||[];
+      l.layout=l.layout||Layout.empty();l.layout.stairs=l.layout.stairs||[];Layout.ensureLayers(l.layout);l.items=l.items||[];
     });
     return state;
   }
@@ -68,8 +68,8 @@ const Levels=(()=>{
       if(!faces.has(old)){const id=nextId('s');faces.set(old,id);if(state.walls[old])state.walls[id]={...state.walls[old]};}
       return faces.get(old);
     };
-    for(const w of source.walls)target.walls.push({...w,id:nextId('w'),faces:{lo:face(w.faces&&w.faces.lo),hi:face(w.faces&&w.faces.hi)}});
-    for(const f of source.floors)target.floors.push({...f,id:nextId('f')});
+    for(const w of source.walls)target.walls.push({...w,layer:undefined,id:nextId('w'),faces:{lo:face(w.faces&&w.faces.lo),hi:face(w.faces&&w.faces.hi)}});
+    for(const f of source.floors)target.floors.push({...f,layer:undefined,id:nextId('f')});
     return source.walls.length+source.floors.length;
   }
 

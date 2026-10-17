@@ -6,7 +6,8 @@ const Export=(()=>{
   const SCALES=[10,20,25,30,40,50,75,100,125,150,200,250,300,400,500,1000];
   const LINE_MM={WALLS:.35,OPENINGS:.25,STAIRS:.18,FURNITURE:.13,ROOMS:.13,DIMENSIONS:.13};
   const GRAY={WALLS:.15,STAIRS:.2,FURNITURE:.4,DIMENSIONS:.3,ROOMS:.1,OPENINGS:0};
-  const DXF_COLORS={WALLS:7,OPENINGS:1,STAIRS:5,FURNITURE:8,ROOMS:3,DIMENSIONS:4};
+  const CUSTOM_GRAY=.2,CUSTOM_LINE_MM=.2;
+const DXF_COLORS={WALLS:7,OPENINGS:1,STAIRS:5,FURNITURE:8,ROOMS:3,DIMENSIONS:4};
 
   const latin1=text=>String(text).replace(/[^\x00-\xff]/g,'?');
   const toBytes=text=>{const out=new Uint8Array(text.length);for(let i=0;i<text.length;i++)out[i]=text.charCodeAt(i)&255;return out;};
@@ -51,10 +52,10 @@ const Export=(()=>{
     ops.push('q');width(.35);color(0,true);
     ops.push(`${fixed(MARGIN_MM*MM_TO_PT,2)} ${fixed(MARGIN_MM*MM_TO_PT,2)} ${fixed(pageW-2*MARGIN_MM*MM_TO_PT,2)} ${fixed(pageH-2*MARGIN_MM*MM_TO_PT,2)} re S`);
     ops.push(`${fixed(MARGIN_MM*MM_TO_PT,2)} ${fixed((MARGIN_MM+TITLE_MM)*MM_TO_PT,2)} m ${fixed(pageW-MARGIN_MM*MM_TO_PT,2)} ${fixed((MARGIN_MM+TITLE_MM)*MM_TO_PT,2)} l S`);
-    const order=['WALLS','FURNITURE','STAIRS','ROOMS','OPENINGS','DIMENSIONS'];
+    const base=['WALLS','FURNITURE','STAIRS','ROOMS','OPENINGS','DIMENSIONS'],order=[...base,...new Set(prims.map(p=>p.layer).filter(l=>!base.includes(l)))];
     for(const layer of order){
       for(const p of prims.filter(p=>p.layer===layer)){
-        ops.push('q');color(GRAY[layer],true);width(LINE_MM[layer]);
+        ops.push('q');color(GRAY[layer]??CUSTOM_GRAY,true);width(LINE_MM[layer]||CUSTOM_LINE_MM);
         if(p.t==='poly'){
           path(p.pts,true);
           if(p.fill==='wall'){color(GRAY.WALLS,false);ops.push('B');}else ops.push('S');
@@ -62,7 +63,7 @@ const Export=(()=>{
         else if(p.t==='arc'){
           const pts=Array.from({length:ARC_STEPS+1},(_,i)=>{const a=(p.a0+(p.a1-p.a0)*i/ARC_STEPS)*Math.PI/180;return[p.cx+p.r*Math.cos(a),p.cz+p.r*Math.sin(a)];});
           path(pts,false);ops.push('S');
-        }else if(p.t==='text')text(p.text,ox+p.x*k,oy-p.z*k,p.mm,{bold:p.bold,center:true,gray:GRAY[layer]});
+        }else if(p.t==='text')text(p.text,ox+p.x*k,oy-p.z*k,p.mm,{bold:p.bold,center:true,gray:GRAY[layer]??CUSTOM_GRAY});
         ops.push('Q');
       }
     }
@@ -97,10 +98,12 @@ const Export=(()=>{
     const out=[];
     const pair=(code,value)=>out.push(String(code),String(value));
     const mm=n=>fixed(n*1000,3);
-    const layers=Object.keys(DXF_COLORS);
+    const colors={...DXF_COLORS};
+    for(const p of prims)if(!(p.layer in colors))colors[p.layer]=p.aci||7;
+    const layers=Object.keys(colors);
     pair(0,'SECTION');pair(2,'HEADER');pair(9,'$ACADVER');pair(1,'AC1009');pair(9,'$DWGCODEPAGE');pair(3,'ANSI_1252');pair(0,'ENDSEC');
     pair(0,'SECTION');pair(2,'TABLES');pair(0,'TABLE');pair(2,'LAYER');pair(70,layers.length);
-    for(const name of layers){pair(0,'LAYER');pair(2,name);pair(70,0);pair(62,DXF_COLORS[name]);pair(6,'CONTINUOUS');}
+    for(const name of layers){pair(0,'LAYER');pair(2,name);pair(70,0);pair(62,colors[name]);pair(6,'CONTINUOUS');}
     pair(0,'ENDTAB');pair(0,'ENDSEC');
     pair(0,'SECTION');pair(2,'ENTITIES');
     for(const p of prims){

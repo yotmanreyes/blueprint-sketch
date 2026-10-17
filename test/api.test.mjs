@@ -43,6 +43,8 @@ const upstairs = Layout.empty();
 upstairs.walls.push({ id: 'u1', x1: 0, z1: 0, x2: 4, z2: 0, t: .15, faces: { hi: 'u1b' } });
 upstairs.floors.push({ id: 'uf', x: 2, z: 2, w: 4, d: 4, f: 'marmol_blanco', name: 'Estudio', zone: '' });
 state.walls.u1b = { t: 'pintura', c: '#f4f3ef' };
+layout.layers.push({ id: 'c7', name: 'Eléctrico', color: '#ff0000', visible: false, locked: true });
+layout.walls[0].layer = 'c7';
 state.level = 0;
 state.levels = [{ id: 'l1', name: 'Planta baja' }, { id: 'l2', name: 'Nivel 1', layout: upstairs, items: [{ id: 'iu', t: 'silla', x: 1, z: 1, r: 0 }] }];
 let ok = 0;
@@ -125,6 +127,10 @@ await bad('a level id with markup', s => { s.levels[1].id = '<b>'; })();
 await bad('a stair that is not a quarter turn', s => { s.layout.stairs[0].r = 1.5; })();
 await bad('an absurd stair', s => { s.layout.stairs[0].d = 500; })();
 await bad('too many stairs', s => { s.layout.stairs = Array.from({ length: 51 }, (_, i) => ({ ...state.layout.stairs[0], id: 's' + i })); })();
+await bad('a layer with a bad color', s => { s.layout.layers[0].color = 'red'; })();
+await bad('a layer id with markup', s => { s.layout.layers[0].id = '<b>'; })();
+await bad('an element on a layer with markup', s => { s.layout.walls[0].layer = '"><x'; })();
+await bad('too many layers', s => { s.layout.layers = Array.from({ length: 41 }, (_, i) => ({ id: 'c' + i, name: 'x', color: '#ffffff', visible: true, locked: false })); })();
 await bad('too many items', s => { s.items = Array.from({ length: 600 }, (_, i) => ({ ...state.items[0], id: 'i' + i })); })();
 r = await call(plan, { method: 'PUT', query: { id }, token: owner, body: { baseVersion: 5 } });
 check('missing state is a 400, not a crash', () => assert.equal(r.status, 400));
@@ -146,6 +152,12 @@ check('levels and stairs survive a round trip', () => {
   assert.equal(got.levels[1].layout.walls[0].id, 'u1');
   assert.equal(got.levels[1].items[0].id, 'iu');
   assert.deepEqual(got.layout.stairs, [{ id: 's1', x: 1, z: 6, w: .9, d: 3.6, r: 1 }]);
+});
+check('layers survive a round trip', () => {
+  const got = r.body.state.layout;
+  const c7 = got.layers.find(l => l.id === 'c7');
+  assert.deepEqual([c7.name, c7.visible, c7.locked], ['Eléctrico', false, true]);
+  assert.equal(got.walls[0].layer, 'c7');
 });
 check('prices and currency survive a round trip', () => { assert.equal(r.body.state.prices['door:0.9x2.1'], 150); assert.equal(r.body.state.currency, '$'); });
 

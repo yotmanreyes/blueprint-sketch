@@ -127,3 +127,21 @@ test('the exporters know the stairs layer', () => {
   assert.ok(latin1(Export.dxf(p, {}).bytes).includes('STAIRS'));
   assert.ok(Export.pdf(p, { name: 'x' }).bytes.length > 500);
 });
+
+test('a custom layer exports under its own name and a hidden one is left out', () => {
+  const s = plan();
+  s.layout.layers.push({ id: 'c1', name: 'Eléctrico', color: '#ff0000', visible: true, locked: false });
+  s.layout.walls[0].layer = 'c1';
+  s.items[0].layer = 'c1';
+  let p = Drawing.build(s, LIB);
+  assert.ok(p.some(q => q.layer === 'ELECTRICO' && q.aci === 1));
+  assert.ok(latin1(Export.dxf(p, {}).bytes).includes('ELECTRICO'));
+  assert.ok(Export.pdf(p, { name: 'x' }).bytes.length > 500);
+  s.layout.layers.find(l => l.id === 'c1').visible = false;
+  p = Drawing.build(s, LIB);
+  assert.ok(!p.some(q => q.layer === 'ELECTRICO'));
+  assert.ok(p.some(q => q.layer === 'WALLS'));
+  s.layout.layers.find(l => l.id === 'l_dims').visible = false;
+  p = Drawing.build(s, LIB);
+  assert.ok(!p.some(q => q.layer === 'DIMENSIONS' || q.layer === 'ROOMS'));
+});

@@ -16,7 +16,28 @@ const Layout=(()=>{
     else if(w.z1>w.z2)[w.z1,w.z2]=[w.z2,w.z1];
     return w;
   }
-  const empty=()=>({walls:[],openings:[],floors:[],lights:[],stairs:[],tag:''});
+  // every kind of element has a base layer; an element belongs to it unless it names another one in `layer`
+  const BASE_LAYERS=[['l_walls','Muros','#9fb3c8'],['l_openings','Puertas y ventanas','#e0a458'],['l_floors','Pisos','#8fbf9f'],
+    ['l_stairs','Escaleras','#c792ea'],['l_items','Muebles','#e8d27a'],['l_dims','Cotas y textos','#6fa8dc']];
+  const BASE_OF={wall:'l_walls',opening:'l_openings',floor:'l_floors',stair:'l_stairs',item:'l_items'};
+  const baseLayers=()=>BASE_LAYERS.map(([id,name,color])=>({id,name,color,visible:true,locked:false}));
+  const isBaseLayer=id=>BASE_LAYERS.some(b=>b[0]===id);
+  function ensureLayers(L){
+    const saved=new Map((L.layers||[]).map(l=>[l.id,l]));
+    const layers=baseLayers().map(b=>({...b,...(saved.get(b.id)||{})}));
+    for(const l of L.layers||[])if(!isBaseLayer(l.id))layers.push(l);
+    L.layers=layers;
+    return L;
+  }
+  const layerList=L=>L.layers||[];
+  function layerOf(L,kind,rec){
+    const id=rec.layer||BASE_OF[kind];
+    return layerList(L).find(l=>l.id===id)||layerList(L).find(l=>l.id===BASE_OF[kind])||null;
+  }
+  const isVisible=(L,kind,rec)=>{const l=layerOf(L,kind,rec);return !l||l.visible!==false;};
+  const isLocked=(L,kind,rec)=>{const l=layerOf(L,kind,rec);return !!l&&l.locked===true;};
+  const dimsVisible=L=>{const l=layerList(L).find(x=>x.id==='l_dims');return !l||l.visible!==false;};
+  const empty=()=>({walls:[],openings:[],floors:[],lights:[],stairs:[],layers:baseLayers(),tag:''});
   const isEmpty=L=>!L.walls.length&&!L.floors.length;
 
   function frame(L){
@@ -159,10 +180,10 @@ const Layout=(()=>{
       {id:'f_bath',x:1.4,z:2,w:2.8,d:4,f:floor.bano,name:'Baño',zone:'bano'}
     ];
     const lights=[[2,6,.45],[1.3,7.2,.75],[3.4,1,.4],[3.4,3,.4],[1.4,2.2,.35]].map(([x,z,drop])=>({x,z,drop}));
-    return{walls,openings,floors,lights,stairs:[],tag:'house'};
+    return{walls,openings,floors,lights,stairs:[],layers:baseLayers(),tag:'house'};
   }
 
   return{isH,axisOf,fixed,span,length,wallById,normalize,empty,isEmpty,frame,floorsBounds,innerBounds,endInfo,opsOf,overlaps,
-    fitOpening,refitWallOpenings,nearestWall,resizeFloor,faceIds,splits,house,STAIR,stairRect,stairSteps,subtractRects};
+    fitOpening,refitWallOpenings,nearestWall,resizeFloor,faceIds,splits,house,BASE_OF,baseLayers,isBaseLayer,ensureLayers,layerOf,isVisible,isLocked,dimsVisible,STAIR,stairRect,stairSteps,subtractRects};
 })();
 if(typeof module!=='undefined')module.exports=Layout;
