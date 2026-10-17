@@ -7,6 +7,8 @@ const FINISHES=new Set(['pintura','micro','ladrillo','enchape','madera']);
 const MAX={items:500,walls:400,openings:400,floors:100,lights:100,faces:2000,prices:300};
 const PRICE_KEY=/^[A-Za-z0-9:_.-]{1,60}$/;
 const MAX_PRICE=1e9;
+const MODEL_ID=/^m_[a-z0-9]{6,20}$/;
+MAX.models=40;
 const LIMIT=1000;
 
 class Invalid extends Error{}
@@ -30,7 +32,7 @@ function item(i){
   obj(i,'item');
   const out={id:id(i.id,'item id'),t:key(i.t,'item type'),x:num(i.x,'item x'),z:num(i.z,'item z'),r:num(i.r,'item r',0,3)};
   if(!Number.isInteger(out.r))fail('item r');
-  for(const k of['y','a','sx','sz'])if(i[k]!==undefined)out[k]=num(i[k],'item '+k,-360,LIMIT);
+  for(const k of['y','a','sx','sy','sz'])if(i[k]!==undefined)out[k]=num(i[k],'item '+k,-360,LIMIT);
   return out;
 }
 function wall(w){
@@ -66,6 +68,20 @@ function prices(p){
   return out;
 }
 
+function models(m){
+  if(m===undefined)return{};
+  obj(m,'models');
+  const keys=Object.keys(m);
+  if(keys.length>MAX.models)fail('too many models');
+  const out={};
+  for(const k of keys){
+    if(!MODEL_ID.test(k))fail('model id');
+    const x=obj(m[k],'model');
+    out[k]={name:text(x.name,'model name',40),w:num(x.w,'model size',.02,20),d:num(x.d,'model size',.02,20),h:num(x.h,'model size',.02,20)};
+  }
+  return out;
+}
+
 export function cleanState(s){
   obj(s,'state');
   const L=obj(s.layout,'layout'),walls={};
@@ -77,7 +93,7 @@ export function cleanState(s){
     style:typeof s.style==='string'&&KEY.test(s.style)?s.style:'',
     metal:key(s.metal,'metal'),wood:key(s.wood,'wood'),
     walls,wallBase:finish(s.wallBase,'wall base'),
-    prices:prices(s.prices),currency:s.currency===undefined?'$':text(s.currency,'currency',4),
+    models:models(s.models),prices:prices(s.prices),currency:s.currency===undefined?'$':text(s.currency,'currency',4),
     defaults:{floor:key(obj(s.defaults,'defaults').floor,'default floor')},
     n:num(s.n,'counter',0,1e7),
     items:list(s.items,'items',MAX.items).map(item),

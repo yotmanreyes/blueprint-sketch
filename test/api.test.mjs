@@ -27,11 +27,12 @@ const layout = Layout.house({ win: { pos: 4.4, w: 1.2, h: 1.2, sill: .9 }, floor
 const finishes = Object.fromEntries(Layout.faceIds(layout).map(f => [f, { t: 'micro', c: '#bdbab4' }]));
 const state = {
   style: 'ind_concreto', metal: 'negro', wood: 'roble', walls: finishes, wallBase: { t: 'micro', c: '#bdbab4' },
-  defaults: { floor: 'marmol_blanco' }, n: 20, layout, prices: { wall: 12.5, 'finish:pintura': 3, 'door:0.9x2.1': 150, contingency: 10 }, currency: '$',
+  defaults: { floor: 'marmol_blanco' }, n: 20, layout, models: { m_a1b2c3d4e5f6: { name: 'Silla de oficina', w: .6, d: .6, h: .95 } }, prices: { wall: 12.5, 'finish:pintura': 3, 'door:0.9x2.1': 150, contingency: 10 }, currency: '$',
   items: [
     { id: 'i1', t: 'ducha', x: .675, z: .525, r: 0 }, { id: 'i2', t: 'sanitario', x: .425, z: 1.75, r: 1 },
     { id: 'i4', t: 'cama140', x: 2.9, z: 5.65, r: 3 }, { id: 'i8', t: 'repisa', x: 1.3, z: 7.8, r: 2, y: 1.35 },
-    { id: 'i9', t: 'cama140', x: 2, z: 2, r: 0, a: 30, sx: 1.2 }
+    { id: 'i9', t: 'cama140', x: 2, z: 2, r: 0, a: 30, sx: 1.2 },
+    { id: 'i10', t: 'm_a1b2c3d4e5f6', x: 3, z: 2, r: 1, sx: 1.1, sy: 1.5, sz: 1.1 }
   ]
 };
 let ok = 0;
@@ -98,6 +99,10 @@ await bad('NaN coordinates', s => { s.items[0].x = 'abc'; })();
 await bad('huge coordinates', s => { s.layout.walls[0].x1 = 1e9; })();
 await bad('bad face color', s => { s.walls[Object.keys(s.walls)[0]].c = 'red;background:url(x)'; })();
 await bad('unknown finish', s => { s.wallBase.t = '<script>'; })();
+await bad('a model with an id that is not an id', s => { s.models['../../x'] = { name: 'x', w: 1, d: 1, h: 1 }; })();
+await bad('a model name that is too long', s => { s.models.m_a1b2c3d4e5f6.name = 'x'.repeat(41); })();
+await bad('a model of absurd size', s => { s.models.m_a1b2c3d4e5f6.h = 500; })();
+await bad('too many models', s => { s.models = Object.fromEntries(Array.from({ length: 41 }, (_, i) => ['m_abcdef' + String(i).padStart(2, '0'), { name: 'x', w: 1, d: 1, h: 1 }])); })();
 await bad('a negative price', s => { s.prices.wall = -1; })();
 await bad('a price key with markup', s => { s.prices['<img>'] = 1; })();
 await bad('a long currency', s => { s.currency = 'dollars!!'; })();
@@ -109,6 +114,10 @@ const extra = JSON.parse(JSON.stringify(state)); extra.evil = '<script>'; extra.
 r = await call(plan, { method: 'PUT', query: { id }, token: owner, body: { state: extra, baseVersion: 5 } });
 r = await call(plan, { query: { id }, token: owner });
 check('unknown keys are stripped', () => { assert.equal(r.body.state.evil, undefined); assert.equal(r.body.state.items[0].evil, undefined); });
+check('imported model data survives a round trip', () => {
+  assert.equal(r.body.state.models.m_a1b2c3d4e5f6.name, 'Silla de oficina');
+  assert.equal(r.body.state.items.find(i => i.id === 'i10').sy, 1.5);
+});
 check('prices and currency survive a round trip', () => { assert.equal(r.body.state.prices['door:0.9x2.1'], 150); assert.equal(r.body.state.currency, '$'); });
 
 // revocation
