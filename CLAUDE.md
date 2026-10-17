@@ -81,6 +81,13 @@ Los pisos no se mueven arrastrándolos (así se puede girar la cámara sobre ell
 - Cambiar de nivel solo guarda en local (`persistView`); no registra historial ni toca la cuota de planos compartidos. `applyRemoteData` conserva el nivel que se está viendo.
 - `Drawing.build(state, lib, level)` dibuja un nivel (capa `STAIRS`); las cantidades suman todos los niveles.
 
+## Plantillas
+
+- `src/templates.js`: `Templates.CATALOG` (clave, nombre, categoría, descripción) y `Templates.create(key, {blank, example, lib})`, que dibuja el plano con las mismas llamadas que haría una persona (`wall`, `floor`, `door`, `window`, `stair`, `item`, `level`). `against(pieza, lado, muro, a lo largo)` apoya una pieza contra la cara interior de un muro; `mirrored(x, …)` dibuja el mismo bloque reflejado (apartamentos gemelos). `previewSvg` dibuja la miniatura de la galería.
+- Los pisos de una plantilla no se solapan (si no, parpadean) y las piezas no se pisan; `test/templates.test.mjs` lo comprueba y valida cada plano con el validador del servidor. Las medidas de `LIB` se leen del editor.
+- El modal (`#templates`) se abre al empezar un plano nuevo sin tocar (una vez por plano, guardado en `localStorage`), con *Plantillas* de la barra superior, *Nuevo plano…* de la pestaña Planos y *Ver plantillas* del plano vacío. Sobre un plano sin tocar reemplaza su contenido; si no, crea otro plano.
+- Pisos de exterior (`open: true`: césped, adoquín, arena, agua, pavimento) no llevan cielo.
+
 ## Capas
 
 - `layout.layers = [{id, name, color, visible, locked}]`, por nivel (viajan con el nivel al cambiar). Hay seis capas base (`l_walls`, `l_openings`, `l_floors`, `l_stairs`, `l_items`, `l_dims`) que `Layout.ensureLayers` garantiza; las propias usan ids `c<n>`.

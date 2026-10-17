@@ -8,6 +8,7 @@ Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeli
 
 ## What you can do
 
+- **Start from a ready-made plan.** A gallery of templates opens with every new workspace: a studio, a house, a two-storey house, an apartment building, an office, a café, a park and a sample house, or a blank grid. Each one is an ordinary plan to build on.
 - **Draw like a blueprint.** Start from an empty grid and add walls, rooms, doors and windows. Dimensions, wall outlines and room labels are drawn for you.
 - **A layout like a professional editor.** Modes on the top bar, drawing tools on the left, level and view switches on the bottom, panels on the right, and an on-canvas camera pad to move and turn the view. The *Perspectiva* menu lists every view: eight aerial angles by compass point and one view inside each room.
 - **Three modes so nothing moves by accident.**
@@ -73,6 +74,7 @@ src/
   engine.js        selectable objects, modes, tools, handles, rotation
   layout.js        the plan model: walls, openings, floors, stairs, corner joins
   levels.js        storeys: the open level and the parked ones
+  templates.js     the ready-made plans offered when a workspace starts
   history.js       undo and redo as snapshots
   drawing.js       a plan as 2D drawing primitives (walls, door swings, dimensions)
   export.js        PDF and DXF writers, sheet and scale selection
