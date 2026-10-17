@@ -10,27 +10,69 @@ Sistema de coordenadas, en metros y vista desde arriba: `x` de izquierda a derec
 
 ## Archivos
 
-- `src/plano-2d.html` — plano en planta en SVG, a escala, con controles:
-  - Ancho y largo del pasillo, posición de las puertas, altura del muro y cama.
-  - Calcula áreas, metros lineales y m² del muro nuevo, superboard y enchape.
-- `src/editor-3d.html` — editor 3D con three.js r128 por CDN (UMD, globales `THREE` y `THREE.OrbitControls`). Pestañas:
+- `src/layout.js`, `src/engine.js`, `src/icons.js`, `src/plan-store.js` — módulos compartidos del editor, sin build: se cargan con `<script>`.
+- `src/editor-3d.html` — editor 3D con three.js r128 por CDN (UMD, globales `THREE` y `THREE.OrbitControls`). El visor ocupa toda la pantalla y el encabezado y el panel flotan encima (el botón *Panel* lo oculta). La escena tiene estructura de plano: cuadrícula de 0,5 m (líneas principales cada 1 m), contorno de muros y cotas, visibles en la vista de planta. Pestañas:
   - **Estilo:** 5 presets, metal y madera.
   - **Muebles:** biblioteca arrastrable con snap de 5 cm, girar, subir y bajar, duplicar y eliminar.
   - **Paredes:** acabado por cara (pintura, microcemento, ladrillo, enchape 60×120 o metro, listones).
-  - **Pisos:** 6 porcelanatos, por zona.
-  - **Ventana:** posición, ancho, alto y antepecho.
+  - **Pisos:** 6 porcelanatos, por piso (el nombre del piso también se edita ahí).
+  - **Vanos:** lista de puertas y ventanas; el vano seleccionado se ajusta con sliders (ancho, alto, antepecho, posición en el muro).
+  - **Planos:** varios diseños guardados con nombre y miniatura.
+
+## Modos del editor
+
+El editor **arranca en un plano vacío** (reutiliza el último plano sin tocar; si no hay, crea "Plano nuevo"). La casa de ejemplo está en la pestaña **Planos**, como plantilla.
+
+| Modo | Atajo | Qué hace |
+|---|---|---|
+| Navegar | `1` | Solo cámara. Nada se selecciona ni se mueve. |
+| Construir | `2` | Selecciona y arrastra muebles, muros y vanos. Herramientas: Seleccionar, Muro, Habitación, Puerta, Ventana. `Esc` sale de la herramienta. |
+| Esculpir | `3` | Selecciona y estira con manijas naranjas: extremos de muro, bordes de vano, lados de piso y de mueble. El cuerpo no se arrastra. |
+
+### Giro de piezas
+Un mueble mira hacia `r` cuartos de vuelta más un ajuste libre `a` en grados (`itemAngle(it)`); `extents()` usa la caja rotada. Se gira con:
+- El punto azul delante de la pieza: arrastrarlo la orienta hacia el puntero, en pasos de 15° (Alt para libre).
+- `Alt` o `Shift` + rueda o scroll del trackpad (15° por paso). En Safari también el giro con dos dedos.
+- `Shift` + ←/→ gira 15°; `Shift` + ↑/↓ gira 90°; `R` gira 90°; botones ↺ ↻ de la barra.
+Mientras una pieza tiene ajuste libre, sus manijas de esculpido se ocultan.
+
+### Navegar con el teclado
+Las teclas mueven la cámara mientras se mantienen pulsadas (`Shift` acelera): `W/S` o ↑/↓ avanzan y retroceden, `A/D` desplazan, `Q/E` o ←/→ giran alrededor del punto de vista, `+`/`−` acercan y alejan. Las flechas solo navegan si no hay una pieza seleccionada en modo Construir (si la hay, la mueven). `Shift`+arrastrar desplaza con el mouse.
+
+Los pisos no se mueven arrastrándolos (así se puede girar la cámara sobre ellos); se mueven con las flechas o se estiran con manijas.
+
+## Modelo de plano (`src/layout.js`)
+
+Muros, vanos y pisos son datos en `state.layout`, en vez de geometría fija:
+- `walls`: `{id, x1, z1, x2, z2, t, faces:{lo, hi}}`. Siempre ortogonales y normalizados (`x1 ≤ x2`, `z1 ≤ z2`). `lo` es la cara hacia −z (muro a lo largo de x) o −x (muro a lo largo de z); `hi`, la opuesta. El id de cara es la clave del acabado en `state.walls`; si falta, vale `state.wallBase`.
+- `openings`: `{id, wall, pos, w, h, sill, kind: 'door'|'window'}`. `pos` se mide desde el inicio del muro. Un vano pertenece a un muro y no puede salirse de él ni cruzarse con otro.
+- `floors`: `{id, x, z, w, d, f, name, zone}` (centro y tamaño). `zone` enlaza la biblioteca con el piso donde aparece un mueble nuevo.
+- `lights`: lámparas colgantes fijas. `tag: 'house'` solo habilita las cámaras de la casa original.
+- Las esquinas y las T se resuelven en `Layout.endInfo`: prolonga el muro en esquinas y recorta los acabados donde otro muro los tapa.
+- Los planos guardados antes de este modelo traen `win` y `floor`; `normalizeState` los convierte a `layout`.
+
+## Engine de entidades (`src/engine.js`)
+
+Todo lo que se puede tocar en la escena es una entidad de un *kind* registrado con `engine.define(kind, def)`. La selección, el arrastre, las flechas del teclado, las manijas y la barra de acciones funcionan igual para todos.
+- Un objeto 3D se vuelve seleccionable con `engine.tag(obj, kind, id)`. El raycast sube por los padres hasta encontrar la etiqueta. Un vano lleva una caja invisible para poder agarrarse por el hueco.
+- `def` implementa: `get(id)`, `object(id)`, `label`, `describe`, `grab`, `drag`, `live`, `rebuild`, `keys`, `actions`, `act`. Opcionales: `plane` (por defecto el piso `y = 0`), `draggable: false`, `pivot`/`rotator`/`rotateTo`/`rotateBy` (giro libre), `priority` (gana entre golpes cercanos; el vano sobre su muro), `handles(rec)` y `dragHandle(rec, i, punto)` para esculpir.
+- `act` devuelve `{rebuild?, select?}`; el engine reconstruye, emite `commit` (el editor guarda) y refresca la selección.
+- Herramientas de dibujo: objetos `{hover, down, move, up, end}` que se activan con `engine.setTool(t)` en modo Construir. Al terminar llaman `engine.changed()`.
+- Kinds actuales: `item`, `wall`, `opening` y `floor`.
 
 ## Arquitectura del editor 3D
 
-- `state` es la única fuente de verdad: `{style, metal, wood, walls, floor, win, items, n}`.
-  - Se guarda en `localStorage` con la clave `plano-cuarto-bano-v1`.
-  - "Copiar diseño" exporta el JSON.
-- `buildStruct()` reconstruye piso, techo, muros, acabados, marcos, ventana y lámparas fijas. Se llama cuando cambia la ventana, una pared, el piso o el estilo.
+- `state` es la única fuente de verdad: `{style, metal, wood, walls, wallBase, defaults, layout, items, n}`. `walls` guarda los acabados por cara; `n` es el contador de ids.
+  - Cada plano guardado es un `state` con nombre dentro de `PlanStore` (`src/plan-store.js`), en `localStorage` con la clave `blueprint-sketch-plans-v1`. Las claves anteriores (`plano-cuarto-bano-v2` y `-v1`) se migran solas y no se borran.
+  - La pestaña **Planos** permite guardar copias, abrir, renombrar, duplicar, eliminar y exportar o importar archivos `.json`.
+  - "Copiar diseño" copia el JSON del plano activo al portapapeles.
+- `buildStruct()` reconstruye pisos, techos, muros con sus acabados, marcos, ventanas, cielo, lámparas, contornos y cotas desde `state.layout`. Se llama cuando cambia cualquier parte de la estructura o el estilo.
 - `buildItems()` reconstruye los muebles desde `state.items`.
 - `LIB` define el catálogo con `w` (ancho, eje x local), `d` (fondo, eje z local) y `elev` opcional para piezas colgadas.
   - El respaldo del mueble va en `-z` local.
   - `rotation.y = r·π/2`: `r = 0` contra la pared del fondo, `1` izquierda, `2` entrada, `3` derecha.
-- `WALLS` lista las caras pintables. Cada cara se arma con `run()` como paneles delgados (0.012) con vanos.
+- Cada cara pintable se arma con `run()` como paneles delgados (0.012) con vanos. `WALLS` solo conserva los nombres de las caras de la casa original; las demás se nombran "Muro N · lado norte/sur/este/oeste".
+- `clampIt()` mantiene los muebles dentro de los pisos (descontando el grosor de los muros de borde) y los imanta a las caras de los muros.
 - Las texturas son procedurales (canvas) y no hay assets externos. Los colores se convierten de sRGB a lineal con `lin()`. Mantener esto: si no, todo se ve más claro.
 - El render es a demanda: solo dibuja cuando `need = true`.
 
