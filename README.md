@@ -149,6 +149,8 @@ The suite covers:
 
 GitHub Actions runs it on every push and pull request.
 
+To check the real Blob store (it writes, reads and deletes one temporary file), link a store, run `vercel env pull .env.local` and then `npm run check:blob`. It covers small and large bodies, because large ones come back with weak etags.
+
 ## What it is, and what it is not
 
 Blueprint Sketch is for **schematic design**: quick layouts, conversations with clients and contractors, teaching and prototyping. It is not a BIM or CAD replacement. It has no structural or MEP calculation, no stairs or roofs, no multi-storey buildings, no model import and no photorealistic rendering, and its drawings are not construction documents.
