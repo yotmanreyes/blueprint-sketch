@@ -76,6 +76,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .foot{display:flex;flex-wrap:wrap;gap:6px}
 #toast{font-size:.78rem;color:var(--accent)}
 #modes button{font-weight:600}
+.model{display:grid;grid-template-columns:1fr auto;gap:2px}
+.model button.x{padding:0 7px;font-size:.7rem;border:1px solid var(--line);background:var(--panel2);border-radius:3px;cursor:pointer;color:var(--muted)}
+.lib .thumb{width:30px;height:30px;border-radius:3px;background:#0b1620;object-fit:cover}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .stats div{display:grid;gap:2px;padding:8px 4px;border:1px solid var(--line);border-radius:3px;text-align:center;background:var(--panel2)}
 .stats b{font-family:var(--mono);font-size:.95rem}.stats small{font-size:.62rem;color:var(--muted)}
@@ -178,6 +181,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="engine.js"></script>
 <script src="icons.js"></script>
 <script src="layout.js"></script>
@@ -187,6 +191,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 <script src="drawing.js"></script>
 <script src="export.js"></script>
 <script src="quantities.js"></script>
+<script src="models.js"></script>
 <script>
 const H=2.4, SNAP=.05;
 const $=id=>document.getElementById(id);
@@ -255,6 +260,8 @@ const M={
   hl:new THREE.MeshBasicMaterial({color:0xd08a3c,transparent:true,opacity:.35,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2})
 };
 const lin=c=>new THREE.Color(c).convertSRGBToLinear();
+M.modelLoading=new THREE.MeshBasicMaterial({color:0x6fa8dc,transparent:true,opacity:.25,depthWrite:false});
+M.modelMissing=new THREE.MeshBasicMaterial({color:0xd08a3c,transparent:true,opacity:.3,depthWrite:false,wireframe:true});
 for(const m of Object.values(M).flat())if(m.color&&!m.map)m.color.convertSRGBToLinear();
 const finishCache=new Map();
 function finishMat(spec,len,h){
@@ -316,6 +323,11 @@ function defaultState(){
     {id:'i10',t:'tapete',x:2.55,z:5.65,r:1},{id:'i11',t:'banco',x:3.05,z:.85,r:1},{id:'i12',t:'planta',x:.4,z:4.45,r:0}]};
   styleWalls(s,'ind_concreto');return s;
 }
+// imported models appear in the library of the plan that uses them, under their own ids
+function syncCustomLib(){
+  for(const k of Object.keys(LIB))if(LIB[k].custom)delete LIB[k];
+  for(const[id,m]of Object.entries(state.models||{}))LIB[id]={n:m.name,w:m.w,d:m.d,h:m.h,zone:'',custom:true};
+}
 function blankState(){
   const s={style:'moderno',metal:'cromo',wood:'clara',walls:{},n:0,defaults:{floor:'marmol_blanco'},layout:Layout.empty(),items:[]};
   styleWalls(s,'moderno');return s;
@@ -332,6 +344,7 @@ function normalizeState(s){
   }
   s.defaults=s.defaults||{floor:'marmol_blanco'};
   s.prices=s.prices||{};
+  s.models=s.models||{};
   s.currency=s.currency||'$';
   s.wallBase=s.wallBase||{...(STYLES[s.style]||STYLES.moderno).all};
   return s;
@@ -343,6 +356,7 @@ let remote=null;
 const startup=REMOTE_ID?{created:false}:plans.startFresh(blankState,isPristine);
 plans.list().forEach(p=>normalizeState(p.state));
 let state=REMOTE_ID?normalizeState(blankState()):plans.active.state,thumbTimer;
+syncCustomLib();
 const planHistory=History.create();
 let restoring=false;
 planHistory.reset(state);
@@ -521,9 +535,17 @@ function addPlanOverlay(g){
 }
 
 /* ================= muebles ================= */
+// the model's box is already w x h x d metres with its base on the floor; until it is loaded a box stands in
+function addCustomModel(g,it,L){
+  const model=Models.instance(it.t);
+  if(model){g.add(model);return;}
+  const unavailable=['missing','broken'].includes(Models.stateOf(it.t));
+  B(g,-L.w/2,L.w/2,0,L.h,-L.d/2,L.d/2,unavailable?M.modelMissing:M.modelLoading,false);
+}
 function buildItem(it){
   const L=LIB[it.t],g=new THREE.Group(),w=L.w,d=L.d,hw=w/2,hd=d/2,e=it.y??L.elev??0;
-  switch(it.t){
+  if(L.custom)addCustomModel(g,it,L);
+  else switch(it.t){
     case'closet120':case'closet180':case'closet240':{B(g,-hw,hw,0,2.2,-hd,hd-.02,M.carcass);const n=Math.round(w/.6),dw=w/n;
       for(let i=0;i<n;i++){const x0=-hw+i*dw;B(g,x0+.006,x0+dw-.006,.08,2.16,hd-.02,hd,M.wood);const hx=i%2?x0+.06:x0+dw-.06;B(g,hx-.01,hx+.01,.9,1.3,hd,hd+.025,M.metal);}
       B(g,-hw,hw,0,.08,-hd,hd-.03,M.metal);break;}
@@ -555,7 +577,7 @@ function buildItem(it){
     case'lavamanos':{B(g,-hw,hw,.55,.85,-hd,hd,M.wood);C(g,0,.92,.03,.17,.13,M.white,32);B(g,-.02,.02,.85,1.04,-hd+.03,-hd+.07,M.metal);B(g,-.015,.015,1.0,1.03,-hd+.05,-.05,M.metal);
       const mr=new THREE.Mesh(new THREE.CircleGeometry(.3,48),M.mirror);mr.position.set(0,1.55,-hd+.004);g.add(mr);const mf=new THREE.Mesh(new THREE.TorusGeometry(.31,.015,8,48),M.metal);mf.position.copy(mr.position);g.add(mf);break;}
   }
-  g.position.set(it.x,0,it.z);g.rotation.y=itemAngle(it)*Math.PI/180;g.scale.set(it.sx||1,1,it.sz||1);return engine.tag(g,'item',it.id);
+  g.position.set(it.x,0,it.z);g.rotation.y=itemAngle(it)*Math.PI/180;g.scale.set(it.sx||1,it.sy||1,it.sz||1);return engine.tag(g,'item',it.id);
 }
 function buildItems(){clear(itemsG);for(const it of state.items)itemsG.add(buildItem(it));engine.refresh();need=true;}
 function objOf(id){return itemsG.children.find(o=>o.userData.entity.id===id);}
@@ -628,12 +650,13 @@ engine.define('item',{
       field('a','Giro',itemAngle(it),{min:-360,max:360,step:1,unit:'°',set:v=>{setItemAngle(it,v);clampIt(it,true);}}),
       field('w','Ancho',L.w*(it.sx||1),{min:MIN_ITEM_SIZE,max:MAX_ITEM_SIZE,set:v=>{it.sx=v/L.w;clampIt(it,true);}}),
       field('d','Fondo',L.d*(it.sz||1),{min:MIN_ITEM_SIZE,max:MAX_ITEM_SIZE,set:v=>{it.sz=v/L.d;clampIt(it,true);}})];
+    if(L.custom)f.push(field('h','Alto',L.h*(it.sy||1),{min:MIN_ITEM_SIZE,max:MAX_ITEM_SIZE,set:v=>{it.sy=v/L.h;}}));
     if(L.elev!=null)f.push(field('y','Altura',it.y??L.elev,{min:0,max:2.1,set:v=>{it.y=v;}}));
     return f;},
   describe:it=>{const L=LIB[it.t];return`x ${f2(it.x)} · z ${f2(it.z)}${L.elev!=null?` · altura ${f2(it.y??L.elev)}`:''} m · ${Math.round(itemAngle(it))}°`;},
   grab:(it,p)=>({x:it.x-p.x,z:it.z-p.z}),
   drag:(it,p,o)=>{it.x=p.x+o.x;it.z=p.z+o.z;clampIt(it);},
-  live:it=>{const o=objOf(it.id);o.position.set(it.x,0,it.z);o.rotation.y=itemAngle(it)*Math.PI/180;o.scale.set(it.sx||1,1,it.sz||1);},
+  live:it=>{const o=objOf(it.id);o.position.set(it.x,0,it.z);o.rotation.y=itemAngle(it)*Math.PI/180;o.scale.set(it.sx||1,it.sy||1,it.sz||1);},
   rebuild:buildItems,
   keys:{...ARROWS,Delete:'del',Backspace:'del',r:'rot',R:'rot','Shift+ArrowLeft':'rotL','Shift+ArrowRight':'rotR','Shift+ArrowUp':'rot','Shift+ArrowDown':'rotBack'},
   actions:it=>[...arrowButtons(['l','u','d','r']),{a:'rotL',t:'↺',aria:'Girar 15° a la izquierda'},{a:'rotR',t:'↻',aria:'Girar 15° a la derecha'},{a:'rot',t:'Girar 90°'},...(LIB[it.t].elev!=null?[{a:'up',t:'Subir'},{a:'down',t:'Bajar'}]:[]),{a:'dup',t:'Duplicar'},{a:'del',t:'Eliminar'}],
@@ -964,13 +987,51 @@ function spawnPoint(zone){
   const f=state.layout.floors.find(x=>x.zone===zone);
   return f?[f.x,f.z]:[Math.round(controls.target.x/SNAP)*SNAP,Math.round(controls.target.z/SNAP)*SNAP];
 }
+function modelsBlock(){
+  return `<div><h3>Mis modelos 3D</h3><div class="grid2 lib models" id="mymodels"><p class="note">Cargando…</p></div>
+    <div class="foot" style="margin-top:8px"><button class="btn" id="mImport">Importar .glb…</button><input type="file" id="mFile" accept=".glb,model/gltf-binary" multiple hidden></div>
+    <p class="note" style="margin-top:6px">Importa muebles reales en formato .glb (hasta 15 MB). Se guardan en este navegador y sirven para cualquier plano. Si el modelo viene en centímetros o milímetros se ajusta solo; puedes corregir su tamaño en la barra de abajo.</p></div>`;
+}
+async function refreshModels(){
+  const box=$('mymodels');if(!box)return;
+  const rows=await Models.list();
+  box.innerHTML=rows.length?rows.map(m=>`<div class="model"><button data-m="${esc(m.id)}" aria-label="Agregar ${esc(m.name)}"><img class="ic thumb" src="${m.thumb}" alt=""><span>${esc(m.name)}<small>${f2(m.w)}×${f2(m.d)}×${f2(m.h)}</small></span></button><button class="x" data-rm="${esc(m.id)}" aria-label="Quitar ${esc(m.name)} de la biblioteca">✕</button></div>`).join(''):'<p class="note">Todavía no has importado ninguno.</p>';
+}
+function addModelToPlan(m){
+  if(engine.mode==='navigate')engine.setMode('build');
+  state.models[m.id]={name:m.name,w:m.w,d:m.d,h:m.h};syncCustomLib();
+  const[x,z]=spawnPoint(''),it={id:nextId('i'),t:m.id,x,z,r:0};
+  clampIt(it);state.items.push(it);save();buildItems();engine.select('item',it.id);
+}
+function wireModels(){
+  const box=$('mymodels');if(!box)return;
+  refreshModels();
+  let armed=null;
+  box.addEventListener('click',async e=>{
+    const add=e.target.closest('button[data-m]'),rm=e.target.closest('button[data-rm]');
+    if(add){const m=(await Models.list()).find(x=>x.id===add.dataset.m);if(m)addModelToPlan(m);}
+    if(rm){
+      if(armed!==rm.dataset.rm){armed=rm.dataset.rm;rm.textContent='¿Quitar?';return;}
+      await Models.remove(rm.dataset.rm);armed=null;refreshModels();showToast('Modelo quitado de la biblioteca. Los planos que lo usan lo muestran como una caja hasta que lo vuelvas a importar.');
+    }
+  });
+  $('mImport').onclick=()=>$('mFile').click();
+  $('mFile').addEventListener('change',async e=>{
+    for(const file of e.target.files){
+      try{const m=await Models.importFile(file);showToast(`Importado: ${m.name} (${f2(m.w)} × ${f2(m.d)} × ${f2(m.h)} m)`);}
+      catch(err){showToast(`${file.name}: ${err.message}`);}
+    }
+    e.target.value='';refreshModels();
+  });
+}
 function renderMuebles(){
   $('p-muebles').innerHTML=LIBGROUPS.map(([g,ks])=>`<div><h3>${g}</h3><div class="grid2 lib">${ks.map(k=>`<button data-k="${k}">${iconSvg(k)}<span>${LIB[k].n}<small>${f2(LIB[k].w)}×${f2(LIB[k].d)}</small></span></button>`).join('')}</div></div>`).join('')+
-    `<div><h3>En el plano</h3><div class="items" id="itemlist"></div></div><p class="note">Toca un mueble para agregarlo; aparece en el centro de la vista y queda seleccionado para que lo arrastres. Con un mueble seleccionado: flechas para moverlo, Shift+flechas, Alt+rueda o el punto azul para girarlo, R para girar 90° y Supr para eliminar.</p>`;
-  $('p-muebles').querySelector('.lib')&&$('p-muebles').querySelectorAll('.lib').forEach(l=>l.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const k=b.dataset.k,L=LIB[k],[x,z]=spawnPoint(L.zone);
+    `${modelsBlock()}<div><h3>En el plano</h3><div class="items" id="itemlist"></div></div><p class="note">Toca un mueble para agregarlo; aparece en el centro de la vista y queda seleccionado para que lo arrastres. Con un mueble seleccionado: flechas para moverlo, Shift+flechas, Alt+rueda o el punto azul para girarlo, R para girar 90° y Supr para eliminar.</p>`;
+  $('p-muebles').querySelector('.lib')&&$('p-muebles').querySelectorAll('.lib').forEach(l=>l.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!b.dataset.k)return;const k=b.dataset.k,L=LIB[k],[x,z]=spawnPoint(L.zone);
     if(engine.mode==='navigate')engine.setMode('build');
     const it={id:nextId('i'),t:k,x,z,r:0};if(L.elev!=null)it.y=L.elev;clampIt(it);state.items.push(it);save();buildItems();engine.select('item',it.id);}));
   $('itemlist').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;engine.select('item',b.dataset.id);});
+  wireModels();
   renderList();
 }
 const SWATCH=['#f4f3ef','#e8dece','#d9d5ce','#bdbab4','#8f8c86','#55595e','#2e3033','#1b1c1e','#a7b7a9','#5e6f62','#2e3d36','#d0a27a','#9b5b3c','#3d4d63'];
@@ -1072,6 +1133,7 @@ function syncUndoUI(){
 function restoreSnapshot(snapshot){
   restoring=true;
   state=normalizeState(snapshot);
+  syncCustomLib();
   state.items=state.items.filter(i=>LIB[i.t]);
   if(!faceList().some(f=>f.id===selWall))selWall=null;
   if(!state.layout.floors.some(f=>f.id===selFloor))selFloor=null;
@@ -1133,6 +1195,9 @@ function renderCantidades(){
   $('qCur').addEventListener('change',e=>{state.currency=e.target.value.trim().slice(0,4)||'$';save();renderCantidades();});
 }
 
+let modelTimer=null;
+Models.onReady(()=>{clearTimeout(modelTimer);modelTimer=setTimeout(()=>{buildItems();need=true;},60);});
+
 /* ================= exportar dibujo ================= */
 const exportOptions={paper:'A3',scale:'auto'};
 const slug=text=>String(text).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'plano';
@@ -1185,7 +1250,7 @@ function captureThumb(){
 }
 
 function loadPlan(plan){
-  state=normalizeState(plan.state);planHistory.reset(state);syncUndoUI();pendingDelete=null;selWall=null;selFloor=null;engine.select(null);
+  state=normalizeState(plan.state);syncCustomLib();planHistory.reset(state);syncUndoUI();pendingDelete=null;selWall=null;selFloor=null;engine.select(null);
   if(!camList().some(([k])=>k===camKey))camKey='planta';
   applyMetalWood();buildStruct();buildItems();renderTab();renderPlanTitle();renderEmpty();setCam(camKey);
   clearTimeout(thumbTimer);thumbTimer=setTimeout(captureThumb,900);
@@ -1303,7 +1368,7 @@ function renderBanner(){
 }
 
 function applyRemoteData(data){
-  state=normalizeState(data.state);planHistory.reset(state);syncUndoUI();
+  state=normalizeState(data.state);syncCustomLib();planHistory.reset(state);syncUndoUI();
   state.items=state.items.filter(i=>LIB[i.t]);
   selWall=null;selFloor=null;engine.select(null);
   applyMetalWood();buildStruct();buildItems();renderTab();renderPlanTitle();need=true;
