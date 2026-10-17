@@ -35,6 +35,8 @@ for (const entry of Templates.CATALOG) {
   });
 }
 
+// plans with grounds around them: trees and benches may straddle two pieces of ground
+const OPEN_AIR = ['park', 'garden', 'parking', 'sports', 'playground', 'pool', 'school'];
 for (const entry of Templates.CATALOG.filter(t => t.build)) {
   test(`template "${entry.key}": floors do not overlap and pieces sit where they should`, () => {
     const s = build(entry.key);
@@ -49,7 +51,7 @@ for (const entry of Templates.CATALOG.filter(t => t.build)) {
         assert.ok(LIB[it.t], `known piece ${it.t}`);
         const home = rects.find(f => it.x > f.x0 && it.x < f.x1 && it.z > f.z0 && it.z < f.z1);
         assert.ok(home, `${lv.name}: ${it.t} at ${it.x},${it.z} is on a floor`);
-        if (entry.key !== 'park') assert.ok(inside(r, home), `${lv.name}: ${it.t} at ${it.x},${it.z} stays inside its room`);
+        if (!OPEN_AIR.includes(entry.key)) assert.ok(inside(r, home), `${lv.name}: ${it.t} at ${it.x},${it.z} stays inside its room`);
       }
       for (let i = 0; i < placed.length; i++) for (let j = i + 1; j < placed.length; j++) {
         if (placed[i].it.t === 'tapete' || placed[j].it.t === 'tapete') continue;

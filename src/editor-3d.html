@@ -329,6 +329,7 @@ const FLOORS={
   adoquin:{n:'Adoquín',open:true,c:mkCanvas(1024,(g,n)=>{noise(g,n,'#a39a8d',.16,32);grout(g,n,8,16,true,'rgba(70,65,60,.85)',3);}),rough:.9},
   arena:{n:'Arena',open:true,c:mkCanvas(1024,(g,n)=>{noise(g,n,'#d9c79a',.2,35);}),rough:1},
   agua:{n:'Agua',open:true,c:mkCanvas(1024,(g,n)=>{noise(g,n,'#3f86a8',.08,36);const R=rnd(38);for(let i=0;i<60;i++){g.strokeStyle=`rgba(255,255,255,${.05+R()*.1})`;g.lineWidth=2;g.beginPath();const y=R()*n,x=R()*n;g.moveTo(x,y);g.bezierCurveTo(x+40,y-8,x+80,y+8,x+120,y);g.stroke();}}),rough:.06},
+  cancha:{n:'Cancha',open:true,c:mkCanvas(1024,(g,n)=>{noise(g,n,'#b45f3c',.12,39);}),rough:.7},
   pavimento:{n:'Pavimento',open:true,c:mkCanvas(1024,(g,n)=>{noise(g,n,'#5b5d60',.16,37);}),rough:.85},
   gris_claro:{n:'Gris claro 60×60',c:mkCanvas(1024,(g,n)=>{noise(g,n,'#c8c7c4',.06,9);grout(g,n,2,2,false,'rgba(120,120,120,.6)',2);}),rough:.4}
 };
@@ -424,13 +425,17 @@ const LIB={
   sofa:{n:'Sofá 3 puestos',w:2.1,d:.95,zone:''}, mesa:{n:'Mesa de comedor',w:1.6,d:.9,zone:''}, mesacafe:{n:'Mesa redonda',w:.8,d:.8,zone:''},
   cocina:{n:'Mesón de cocina',w:1.8,d:.6,zone:''}, nevera:{n:'Nevera',w:.7,d:.7,zone:''}, barra:{n:'Barra',w:2.4,d:.6,zone:''},
   arbol:{n:'Árbol',w:1.8,d:1.8,zone:''}, arbusto:{n:'Arbusto',w:.9,d:.9,zone:''}, farola:{n:'Farola',w:.3,d:.3,zone:''},
-  bancoparque:{n:'Banca de parque',w:1.7,d:.55,zone:''}, mesapicnic:{n:'Mesa de picnic',w:1.8,d:1.6,zone:''}, fuente:{n:'Fuente',w:2.4,d:2.4,zone:''},
+  bancoparque:{n:'Banca de parque',w:1.7,d:.55,zone:''}, pupitre:{n:'Pupitre',w:.6,d:.8,zone:''}, pizarra:{n:'Pizarra',w:2.4,d:.08,elev:1.0,zone:''},
+  caminadora:{n:'Caminadora',w:.9,d:1.8,zone:''}, mancuernas:{n:'Rack de mancuernas',w:1.8,d:.5,zone:''}, auto:{n:'Automóvil',w:1.9,d:4.4,zone:''},
+  tumbona:{n:'Tumbona',w:.7,d:1.9,zone:''}, porteria:{n:'Portería',w:3.0,d:.3,zone:''}, canasta:{n:'Aro de baloncesto',w:1.2,d:.8,zone:''},
+  columpio:{n:'Columpios',w:2.4,d:1.4,zone:''}, tobogan:{n:'Tobogán',w:.9,d:2.6,zone:''}, mesapicnic:{n:'Mesa de picnic',w:1.8,d:1.6,zone:''}, fuente:{n:'Fuente',w:2.4,d:2.4,zone:''},
   ducha:{n:'Ducha 1,20×0,90',w:1.2,d:.9,zone:'bano'}, sanitario:{n:'Sanitario',w:.4,d:.7,zone:'bano'}, lavamanos:{n:'Lavamanos flotante',w:.6,d:.45,zone:'bano'},
   repisabano:{n:'Repisa de baño',w:.6,d:.15,elev:1.2,zone:'bano'}
 };
 const LIBGROUPS=[['Guardado',['closet120','closet180','closet240','estante','repisa']],['Dormir y trabajar',['cama100','cama140','cama160','mesanoche','escritorio','silla']],
   ['Estar y decoración',['tv','sofa','sillon','tapete','planta','lampara','espejo','banco']],['Cocina y comedor',['cocina','nevera','mesa','mesacafe','barra']],
-  ['Baño',['ducha','sanitario','lavamanos','repisabano']],['Exterior',['arbol','arbusto','farola','bancoparque','mesapicnic','fuente']]];
+  ['Baño',['ducha','sanitario','lavamanos','repisabano']],['Exterior',['arbol','arbusto','farola','bancoparque','mesapicnic','fuente','tumbona','auto']],
+  ['Juegos y deporte',['columpio','tobogan','porteria','canasta','caminadora','mancuernas']],['Aulas',['pupitre','pizarra']]];
 const nextId=prefix=>prefix+(++state.n);
 
 function defaultState(){
@@ -799,6 +804,21 @@ function buildItem(it){
     case'mesapicnic':B(g,-hw+.1,hw-.1,.74,.78,-.4,.4,M.wood);B(g,-hw+.1,hw-.1,.42,.46,-.78,-.42,M.wood);B(g,-hw+.1,hw-.1,.42,.46,.42,.78,M.wood);
       for(const x of[-hw+.35,hw-.35])B(g,x-.03,x+.03,0,.74,-.7,.7,M.metal);break;
     case'fuente':C(g,0,.2,0,hw,.4,M.tray,48);C(g,0,.38,0,hw-.12,.03,M.glass,48);C(g,0,.7,0,.14,.6,M.tray,16);C(g,0,1.02,0,.4,.07,M.tray,32);C(g,0,1.08,0,.34,.02,M.glass,32);break;
+    case'pupitre':B(g,-hw,hw,.68,.72,-hd,-hd+.4,M.wood);for(const x of[-hw+.04,hw-.04])B(g,x-.015,x+.015,0,.68,-hd+.04,-hd+.08,M.metal);
+      B(g,-hw+.05,hw-.05,.42,.45,hd-.4,hd,M.wood);B(g,-hw+.05,hw-.05,.45,.8,hd-.03,hd,M.wood);for(const x of[-hw+.08,hw-.08])B(g,x-.015,x+.015,0,.42,hd-.1,hd-.07,M.metal);break;
+    case'pizarra':B(g,-hw,hw,e,e+1.2,-hd,hd,M.metal);B(g,-hw+.04,hw-.04,e+.04,e+1.16,hd-.001,hd+.004,M.white);break;
+    case'caminadora':B(g,-hw,hw,.1,.25,-hd,hd,M.carcass);B(g,-hw+.1,hw-.1,.26,.27,-hd+.1,hd-.1,M.metal);B(g,-hw,-hw+.05,.25,1.1,-hd,-hd+.05,M.metal);B(g,hw-.05,hw,.25,1.1,-hd,-hd+.05,M.metal);B(g,-.2,.2,1.05,1.3,-hd,-hd+.15,M.screen);break;
+    case'mancuernas':B(g,-hw,hw,0,.05,-hd,hd,M.metal);B(g,-hw,hw,.5,.54,-hd,hd,M.metal);for(const x of[-hw,hw-.04])B(g,x,x+.04,0,.9,-hd,hd,M.metal);
+      for(let i=0;i<6;i++){const x=-hw+.2+i*.28;C(g,x,.62,0,.05,.12,M.carcass,12);}break;
+    case'auto':{B(g,-hw,hw,.3,.75,-hd,hd,M.metal);B(g,-hw+.12,hw-.12,.75,1.3,-hd+1.1,hd-.7,M.metal);B(g,-hw+.18,hw-.18,.78,1.25,-hd+1.15,hd-.75,M.glass,false);
+      for(const[x,z]of[[-hw+.05,-hd+.75],[hw-.05,-hd+.75],[-hw+.05,hd-.75],[hw-.05,hd-.75]]){const wh=C(g,x,.3,z,.3,.22,M.carcass,16);wh.rotation.z=Math.PI/2;}break;}
+    case'tumbona':B(g,-hw,hw,.28,.32,-hd,hd-.55,M.wood);{const back=B(g,-hw,hw,.3,.34,hd-.6,hd,M.wood);back.rotation.x=-.9;back.position.y=.55;back.position.z=hd-.3;}
+      for(const[x,z]of[[-hw+.05,-hd+.1],[hw-.05,-hd+.1],[-hw+.05,hd-.7],[hw-.05,hd-.7]])B(g,x-.02,x+.02,0,.28,z-.02,z+.02,M.metal);break;
+    case'porteria':for(const x of[-hw,hw-.1])B(g,x,x+.1,0,2.2,-.05,.05,M.white);B(g,-hw,hw,2.1,2.2,-.05,.05,M.white);B(g,-hw+.1,hw-.1,0,2.1,-.15,-.14,M.glass,false);break;
+    case'canasta':C(g,0,1.6,-hd+.1,.06,3.2,M.metal,10);B(g,-.5,.5,2.8,3.4,-hd+.15,-hd+.18,M.white);{const ring=new THREE.Mesh(new THREE.TorusGeometry(.23,.015,8,24),M.bulb);ring.rotation.x=Math.PI/2;ring.position.set(0,3.05,-hd+.45);g.add(ring);}break;
+    case'columpio':for(const x of[-hw+.1,hw-.1]){B(g,x-.04,x+.04,0,2.3,-hd+.1,-hd+.18,M.metal);B(g,x-.04,x+.04,0,2.3,hd-.18,hd-.1,M.metal);}B(g,-hw+.1,hw-.1,2.25,2.33,-.04,.04,M.metal);
+      for(const x of[-.6,.6]){B(g,x-.01,x-.0,.5,2.25,-.02,.02,M.metal);B(g,x+.0,x+.01,.5,2.25,-.02,.02,M.metal);B(g,x-.2,x+.2,.45,.5,-.1,.1,M.wood);}break;
+    case'tobogan':B(g,-hw,hw,0,1.6,-hd,-hd+.7,M.wood);{const ramp=B(g,-hw+.1,hw-.1,.05,.1,-hd+.5,hd,M.metal);ramp.rotation.x=.5;ramp.position.y=.8;ramp.position.z=-hd+.5+(hd+hd-.5)/2-.1;}break;
     case'lavamanos':{B(g,-hw,hw,.55,.85,-hd,hd,M.wood);C(g,0,.92,.03,.17,.13,M.white,32);B(g,-.02,.02,.85,1.04,-hd+.03,-hd+.07,M.metal);B(g,-.015,.015,1.0,1.03,-hd+.05,-.05,M.metal);
       const mr=new THREE.Mesh(new THREE.CircleGeometry(.3,48),M.mirror);mr.position.set(0,1.55,-hd+.004);g.add(mr);const mf=new THREE.Mesh(new THREE.TorusGeometry(.31,.015,8,48),M.metal);mf.position.copy(mr.position);g.add(mf);break;}
   }
