@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 const src = name => fs.readFileSync(fileURLToPath(new URL('../src/' + name, import.meta.url)), 'utf8');
 const Layout = new Function('module', src('layout.js') + ';return Layout')();
-const Quantities = new Function('Layout', 'module', src('quantities.js') + ';return Quantities')(Layout);
+const Levels = new Function('Layout', 'module', src('levels.js') + ';return Levels')(Layout);
+const Quantities = new Function('Layout', 'Levels', 'module', src('quantities.js') + ';return Quantities')(Layout, Levels);
 
 const wall = (id, x1, z1, x2, z2, faces) => ({ id, x1, z1, x2, z2, t: .15, faces });
 const LIB = { cama140: { n: 'Cama doble' }, silla: { n: 'Silla' } };
@@ -16,12 +17,12 @@ function state(prices = {}) {
   L.walls.push(wall('n', 0, 0, 4, 0, { hi: 'a' }), wall('s', 0, 3, 4, 3, { lo: 'b' }), wall('w', 0, 0, 0, 3, { hi: 'c' }), wall('e', 4, 0, 4, 3, { lo: 'd' }));
   L.floors.push({ id: 'f', x: 2, z: 1.5, w: 4, d: 3, f: 'x', name: 'Sala', zone: '' });
   L.openings.push({ id: 'o1', wall: 'n', pos: 1, w: .9, h: 2.1, sill: 0, kind: 'door' }, { id: 'o2', wall: 'e', pos: 1, w: 1.2, h: 1.2, sill: .9, kind: 'window' });
-  return {
+  return Levels.ensure({
     layout: L, prices,
     walls: { a: { t: 'pintura', c: '#fff' }, b: { t: 'pintura', c: '#fff' }, c: { t: 'micro', c: '#fff' }, d: { t: 'pintura', c: '#eee' } },
     wallBase: { t: 'pintura', c: '#fff' },
     items: [{ id: 'i1', t: 'cama140', x: 1, z: 1, r: 0 }, { id: 'i2', t: 'silla', x: 2, z: 1, r: 0 }, { id: 'i3', t: 'silla', x: 3, z: 1, r: 0 }, { id: 'i4', t: 'ghost', x: 3, z: 1, r: 0 }]
-  };
+  });
 }
 const line = (q, key) => q.lines.find(l => l.key === key);
 const compute = (s = state()) => Quantities.compute(s, { lib: LIB, floorNames: { x: 'Porcelanato' } });
@@ -87,4 +88,24 @@ test('the CSV opens in Spanish spreadsheets: BOM, semicolons and decimal commas'
   assert.ok(csv.includes('Muros construidos (una cara, descontando vanos);30,27;m²;10;302,7'));
   assert.ok(csv.includes('Total;;;;302,7'));
   assert.ok(csv.includes('Precio unitario (€)'));
+});
+
+test('levels add up, and the slab loses the stairwell', () => {
+  const s = state(), next = (() => { let n = 0; return p => p + (++n); })();
+  s.layout.stairs.push({ id: 'st', x: 1, z: 1.5, w: 1, d: 2, r: 0 });
+  Levels.add(s, next);
+  Levels.switchTo(s, 1);
+  s.layout.floors.push({ id: 'f2', x: 2, z: 1.5, w: 4, d: 3, f: 'x', name: 'Estudio', zone: '' });
+  const q = compute(s);
+  assert.deepEqual(q.rooms.map(r => r.name), ['Planta baja · Sala', 'Nivel 1 · Estudio']);
+  assert.equal(q.summary.floorArea, 24);
+  assert.equal(line(q, 'floor:x').qty, 24);
+  assert.equal(line(q, 'slab').qty, 10);
+  assert.equal(line(q, 'stair:1x2').qty, 1);
+});
+
+test('a single level keeps plain room names and has no slab', () => {
+  const q = compute();
+  assert.equal(q.rooms[0].name, 'Sala');
+  assert.equal(line(q, 'slab'), undefined);
 });

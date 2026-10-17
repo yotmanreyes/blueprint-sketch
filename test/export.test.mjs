@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 const src = name => fs.readFileSync(fileURLToPath(new URL('../src/' + name, import.meta.url)), 'utf8');
 const Layout = new Function('module', src('layout.js') + ';return Layout')();
-const Drawing = new Function('Layout', 'module', src('drawing.js') + ';return Drawing')(Layout);
+const Levels = new Function('Layout', 'module', src('levels.js') + ';return Levels')(Layout);
+const Drawing = new Function('Layout', 'Levels', 'module', src('drawing.js') + ';return Drawing')(Layout, Levels);
 const Export = new Function('Drawing', 'module', src('export.js') + ';return Export')(Drawing);
 
 const LIB = { cama140: { n: 'Cama doble', w: 1.5, d: 2.05 }, mesanoche: { n: 'Mesa de noche', w: .45, d: .4 } };
@@ -16,7 +17,7 @@ function plan() {
   L.walls.push(wall('n', 0, 0, 4, 0), wall('s', 0, 3, 4, 3), wall('w', 0, 0, 0, 3), wall('e', 4, 0, 4, 3));
   L.floors.push({ id: 'f', x: 2, z: 1.5, w: 4, d: 3, f: 'x', name: 'Sala ñandú', zone: '' });
   L.openings.push({ id: 'd', wall: 'n', pos: 1, w: .9, h: 2.1, sill: 0, kind: 'door' }, { id: 'v', wall: 'e', pos: 1, w: 1.2, h: 1.2, sill: .9, kind: 'window' });
-  return { layout: L, items: [{ id: 'i1', t: 'cama140', x: 2.8, z: 1.5, r: 3 }, { id: 'i2', t: 'mesanoche', x: 1, z: 1, r: 0, a: 30 }, { id: 'zz', t: 'unknown', x: 1, z: 1, r: 0 }] };
+  return Levels.ensure({ layout: L, items: [{ id: 'i1', t: 'cama140', x: 2.8, z: 1.5, r: 3 }, { id: 'i2', t: 'mesanoche', x: 1, z: 1, r: 0, a: 30 }, { id: 'zz', t: 'unknown', x: 1, z: 1, r: 0 }] });
 }
 const prims = () => Drawing.build(plan(), LIB);
 const latin1 = bytes => Buffer.from(bytes).toString('latin1');
@@ -102,4 +103,27 @@ test('DXF text is sized for the plotting scale', () => {
   };
   assert.equal(height(100), 2 * height(50));
   assert.equal(height(50), 2.8 * 50);
+});
+
+test('a stair is drawn on its level and its arrival on the one above', () => {
+  const s = plan(), next = (() => { let n = 0; return p => p + (++n); })();
+  s.layout.stairs.push({ id: 'st', x: 1, z: 1.5, w: 1, d: 3, r: 0 });
+  Levels.add(s, next);
+  Levels.switchTo(s, 1);
+  const up = Drawing.build(s, LIB).filter(p => p.layer === 'STAIRS');
+  assert.ok(up.some(p => p.t === 'text' && p.text === 'BAJA'));
+  assert.ok(!up.some(p => p.text === 'SUBE'));
+  const ground = Drawing.build(s, LIB, 0).filter(p => p.layer === 'STAIRS');
+  assert.ok(ground.some(p => p.t === 'text' && p.text === 'SUBE'));
+  assert.ok(ground.filter(p => p.t === 'line').length >= 13);
+  assert.ok(Drawing.build(s, LIB, 0).some(p => p.layer === 'WALLS'));
+  assert.ok(!Drawing.build(s, LIB, 1).some(p => p.layer === 'WALLS'));
+});
+
+test('the exporters know the stairs layer', () => {
+  const s = plan();
+  s.layout.stairs.push({ id: 'st', x: 1, z: 1.5, w: 1, d: 3, r: 1 });
+  const p = Drawing.build(s, LIB);
+  assert.ok(latin1(Export.dxf(p, {}).bytes).includes('STAIRS'));
+  assert.ok(Export.pdf(p, { name: 'x' }).bytes.length > 500);
 });

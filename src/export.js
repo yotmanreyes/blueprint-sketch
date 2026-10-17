@@ -4,9 +4,9 @@ const Export=(()=>{
   const MM_TO_PT=72/25.4,ARC_STEPS=16,MARGIN_MM=10,TITLE_MM=22,FIT_PADDING_M=.4;
   const PAPERS={A4:[297,210],A3:[420,297],A2:[594,420]};
   const SCALES=[10,20,25,30,40,50,75,100,125,150,200,250,300,400,500,1000];
-  const LINE_MM={WALLS:.35,OPENINGS:.25,FURNITURE:.13,ROOMS:.13,DIMENSIONS:.13};
-  const GRAY={WALLS:.15,FURNITURE:.4,DIMENSIONS:.3,ROOMS:.1,OPENINGS:0};
-  const DXF_COLORS={WALLS:7,OPENINGS:1,FURNITURE:8,ROOMS:3,DIMENSIONS:4};
+  const LINE_MM={WALLS:.35,OPENINGS:.25,STAIRS:.18,FURNITURE:.13,ROOMS:.13,DIMENSIONS:.13};
+  const GRAY={WALLS:.15,STAIRS:.2,FURNITURE:.4,DIMENSIONS:.3,ROOMS:.1,OPENINGS:0};
+  const DXF_COLORS={WALLS:7,OPENINGS:1,STAIRS:5,FURNITURE:8,ROOMS:3,DIMENSIONS:4};
 
   const latin1=text=>String(text).replace(/[^\x00-\xff]/g,'?');
   const toBytes=text=>{const out=new Uint8Array(text.length);for(let i=0;i<text.length;i++)out[i]=text.charCodeAt(i)&255;return out;};
@@ -51,7 +51,7 @@ const Export=(()=>{
     ops.push('q');width(.35);color(0,true);
     ops.push(`${fixed(MARGIN_MM*MM_TO_PT,2)} ${fixed(MARGIN_MM*MM_TO_PT,2)} ${fixed(pageW-2*MARGIN_MM*MM_TO_PT,2)} ${fixed(pageH-2*MARGIN_MM*MM_TO_PT,2)} re S`);
     ops.push(`${fixed(MARGIN_MM*MM_TO_PT,2)} ${fixed((MARGIN_MM+TITLE_MM)*MM_TO_PT,2)} m ${fixed(pageW-MARGIN_MM*MM_TO_PT,2)} ${fixed((MARGIN_MM+TITLE_MM)*MM_TO_PT,2)} l S`);
-    const order=['WALLS','FURNITURE','ROOMS','OPENINGS','DIMENSIONS'];
+    const order=['WALLS','FURNITURE','STAIRS','ROOMS','OPENINGS','DIMENSIONS'];
     for(const layer of order){
       for(const p of prims.filter(p=>p.layer===layer)){
         ops.push('q');color(GRAY[layer],true);width(LINE_MM[layer]);

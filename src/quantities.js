@@ -20,41 +20,45 @@ const Quantities=(()=>{
   }
 
   function compute(state,{lib={},floorNames={},height=WALL_HEIGHT}={}){
-    const L=state.layout,spec=id=>state.walls[id]||state.wallBase;
-    const rooms=L.floors.map(f=>({id:f.id,name:f.name||'Piso',area:round(f.w*f.d),perimeter:round(2*(f.w+f.d))}));
+    const spec=id=>state.walls[id]||state.wallBase,levels=Levels.list(state),many=levels.length>1;
+    const rooms=[],walls=[],finishArea={},floorArea={},openings={door:{},window:{}},furniture={},stairs={};
+    let structureArea=0,structureLength=0,slabArea=0,doors=0,windows=0;
 
-    const walls=[],finishArea={};
-    let structureArea=0,structureLength=0;
-    for(const w of L.walls){
-      const[s0,s1]=Layout.span(w),length=s1-s0;
-      let area=length*height;
-      for(const o of Layout.opsOf(L,w))area-=(o.b-o.a)*(Math.min(o.y1,height)-o.y0);
-      area=Math.max(0,area);
-      walls.push({id:w.id,length:round(length),thickness:w.t,area:round(area)});
-      structureArea+=area;structureLength+=length;
-      for(const side of['lo','hi']){
-        const id=w.faces&&w.faces[side];if(!id)continue;
-        const key=finishKey(spec(id));
-        finishArea[key]=(finishArea[key]||0)+faceArea(L,w,side,height).area;
+    for(const lv of levels){
+      const L=lv.layout;
+      for(const f of L.floors)rooms.push({id:f.id,name:many?`${lv.name} · ${f.name||'Piso'}`:f.name||'Piso',area:round(f.w*f.d),perimeter:round(2*(f.w+f.d))});
+      for(const w of L.walls){
+        const[s0,s1]=Layout.span(w),length=s1-s0;
+        let area=length*height;
+        for(const o of Layout.opsOf(L,w))area-=(o.b-o.a)*(Math.min(o.y1,height)-o.y0);
+        area=Math.max(0,area);
+        walls.push({id:w.id,length:round(length),thickness:w.t,area:round(area)});
+        structureArea+=area;structureLength+=length;
+        for(const side of['lo','hi']){
+          const id=w.faces&&w.faces[side];if(!id)continue;
+          const key=finishKey(spec(id));
+          finishArea[key]=(finishArea[key]||0)+faceArea(L,w,side,height).area;
+        }
       }
+      for(const f of L.floors){
+        floorArea[f.f]=(floorArea[f.f]||0)+f.w*f.d;
+        if(lv.index>0)slabArea+=f.w*f.d;
+      }
+      if(lv.index>0)for(const s of Levels.arriving(state,lv.index)){const r=Layout.stairRect(s);slabArea-=(r.x1-r.x0)*(r.z1-r.z0);}
+      for(const o of L.openings){const k=`${round(o.w)}x${round(o.h)}`;openings[o.kind][k]=(openings[o.kind][k]||0)+1;if(o.kind==='door')doors++;else windows++;}
+      for(const it of lv.items)if(lib[it.t])furniture[it.t]=(furniture[it.t]||0)+1;
+      for(const s of L.stairs){const k=`${round(s.w)}x${round(s.d)}`;stairs[k]=(stairs[k]||0)+1;}
     }
-
-    const floorArea={};
-    for(const f of L.floors)floorArea[f.f]=(floorArea[f.f]||0)+f.w*f.d;
-
-    const openings={door:{},window:{}};
-    for(const o of L.openings){const k=`${round(o.w)}x${round(o.h)}`;openings[o.kind][k]=(openings[o.kind][k]||0)+1;}
-
-    const furniture={};
-    for(const it of state.items)if(lib[it.t])furniture[it.t]=(furniture[it.t]||0)+1;
 
     const lines=[];
     const line=(section,key,label,qty,unit)=>lines.push({section,key,label,qty:round(qty),unit,price:state.prices&&state.prices[key]||0});
     line('Estructura','wall','Muros construidos (una cara, descontando vanos)',structureArea,'m²');
+    if(slabArea>0)line('Estructura','slab','Losa de entrepiso (descontando huecos de escalera)',slabArea,'m²');
     for(const[k,v]of Object.entries(finishArea).sort())line('Acabados de pared',`finish:${k}`,FINISH_LABELS[k]||k,v,'m²');
     for(const[k,v]of Object.entries(floorArea).sort())line('Pisos',`floor:${k}`,floorNames[k]||k,v,'m²');
     for(const kind of['door','window'])for(const[size,count]of Object.entries(openings[kind]).sort())
       line('Puertas y ventanas',`${kind}:${size}`,`${kind==='door'?'Puerta':'Ventana'} ${size.replace('x',' × ')} m`,count,'u');
+    for(const[size,count]of Object.entries(stairs).sort())line('Escaleras',`stair:${size}`,`Escalera ${size.replace('x',' × ')} m`,count,'u');
     for(const[type,count]of Object.entries(furniture).sort())line('Mobiliario',`item:${type}`,lib[type].n,count,'u');
     for(const l of lines)l.total=round(l.qty*l.price);
 
@@ -62,8 +66,7 @@ const Quantities=(()=>{
     const contingency=round(subtotal*contingencyPercent/100);
     return{
       rooms,walls,lines,
-      summary:{floorArea:round(rooms.reduce((s,r)=>s+r.area,0)),wallLength:round(structureLength),wallArea:round(structureArea),
-        doors:L.openings.filter(o=>o.kind==='door').length,windows:L.openings.filter(o=>o.kind==='window').length},
+      summary:{floorArea:round(rooms.reduce((s,r)=>s+r.area,0)),wallLength:round(structureLength),wallArea:round(structureArea),doors,windows},
       budget:{subtotal,contingencyPercent,contingency,total:round(subtotal+contingency)}
     };
   }

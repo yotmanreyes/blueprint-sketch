@@ -1270,6 +1270,7 @@ function renderLevels(){
     '<button class="edit" data-v="add" aria-label="Añadir un nivel arriba">+ Nivel</button>';
 }
 function afterLevelChange(){
+  exportLevel=null;
   if(!camList().some(([k])=>k===camKey))camKey='planta';
   buildStruct();buildItems();renderLevels();renderTab();renderEmpty();setCam(camKey);
 }
@@ -1396,14 +1397,19 @@ Models.onReady(()=>{clearTimeout(modelTimer);modelTimer=setTimeout(()=>{buildIte
 
 /* ================= exportar dibujo ================= */
 const exportOptions={paper:'A3',scale:'auto'};
+let exportLevel=null;
+const levelToExport=()=>Math.min(exportLevel??state.level,Levels.count(state)-1);
+const exportTitle=()=>Levels.count(state)>1?`${currentPlanName()} · ${Levels.at(state,levelToExport()).name}`:currentPlanName();
 const slug=text=>String(text).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'plano';
 const currentPlanName=()=>REMOTE_ID?(remote&&remote.name)||'Plano compartido':plans.active.name;
 
 function exportBlock(){
   const scales=[20,25,50,75,100,200].map(n=>`<option value="${n}" ${String(exportOptions.scale)===String(n)?'selected':''}>1:${n}</option>`).join('');
   const papers=Object.keys(Export.PAPERS).map(k=>`<option ${exportOptions.paper===k?'selected':''}>${k}</option>`).join('');
+  const levels=Levels.list(state),pick=Math.min(exportLevel??state.level,levels.length-1);
+  const levelSelect=levels.length>1?`<select id="exLevel" aria-label="Nivel a exportar">${levels.map(l=>`<option value="${l.index}" ${l.index===pick?'selected':''}>${esc(l.name)}</option>`).join('')}</select>`:'';
   return `<div><h3>Exportar dibujo a escala</h3>
-    <div class="roles"><select id="exPaper" aria-label="Tamaño de hoja">${papers}</select>
+    <div class="roles">${levelSelect}<select id="exPaper" aria-label="Tamaño de hoja">${papers}</select>
     <select id="exScale" aria-label="Escala"><option value="auto" ${exportOptions.scale==='auto'?'selected':''}>Escala automática</option>${scales}</select></div>
     <p class="note" id="exInfo" style="margin-top:6px"></p>
     <div class="foot" style="margin-top:8px"><button class="btn on" id="exPdf">PDF</button><button class="btn" id="exDxf">DXF (CAD)</button></div>
@@ -1416,15 +1422,16 @@ function wireExport(){
   const empty=planIsBlank();
   const info=()=>{
     if(empty){$('exInfo').textContent='Dibuja algo para poder exportarlo.';return;}
-    const s=Export.sheet(Drawing.build(state,LIB),exportOptions);
+    const s=Export.sheet(Drawing.build(state,LIB,levelToExport()),exportOptions);
     $('exInfo').textContent=`Se dibujará a 1:${s.den} en ${s.paper} ${s.orientation==='landscape'?'horizontal':'vertical'}${s.fits?'':'. No cabe: elige una hoja más grande o una escala menor.'}`;
   };
+  if($('exLevel'))$('exLevel').onchange=e=>{exportLevel=+e.target.value;info();};
   $('exPaper').onchange=e=>{exportOptions.paper=e.target.value;info();};
   $('exScale').onchange=e=>{exportOptions.scale=e.target.value;info();};
   $('exPdf').disabled=$('exDxf').disabled=empty;
-  const meta=()=>({name:currentPlanName(),date:new Date().toLocaleDateString('es',{day:'numeric',month:'long',year:'numeric'})});
-  $('exPdf').onclick=()=>{const r=Export.pdf(Drawing.build(state,LIB),meta(),exportOptions);download(r.bytes,slug(currentPlanName())+'.pdf','application/pdf');};
-  $('exDxf').onclick=()=>{const r=Export.dxf(Drawing.build(state,LIB),meta(),exportOptions);download(r.bytes,slug(currentPlanName())+'.dxf','application/dxf');};
+  const meta=()=>({name:exportTitle(),date:new Date().toLocaleDateString('es',{day:'numeric',month:'long',year:'numeric'})});
+  $('exPdf').onclick=()=>{const r=Export.pdf(Drawing.build(state,LIB,levelToExport()),meta(),exportOptions);download(r.bytes,slug(exportTitle())+'.pdf','application/pdf');};
+  $('exDxf').onclick=()=>{const r=Export.dxf(Drawing.build(state,LIB,levelToExport()),meta(),exportOptions);download(r.bytes,slug(exportTitle())+'.dxf','application/dxf');};
   info();
 }
 
