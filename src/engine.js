@@ -16,7 +16,7 @@ const Engine=(()=>{
     const rotLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),
       new THREE.LineBasicMaterial({color:0x4fc3f7,depthTest:false,transparent:true,opacity:.7,toneMapped:false}));
     rotLine.renderOrder=20;rotLine.visible=false;rotLine.frustumCulled=false;scene.add(rotKnob,rotLine);
-    let sel=null,drag=null,down=null,mode='build',tool=null,wheelAcc=0,wheelTimer=null;
+    let sel=null,drag=null,down=null,mode='build',tool=null,wheelAcc=0,wheelTimer=null,locked=false;
 
     const define=(name,def)=>{kinds[name]=def;};
     const tag=(obj,kind,id)=>{obj.userData.entity={kind,id};return obj;};
@@ -98,6 +98,7 @@ const Engine=(()=>{
     }
 
     function setMode(m){
+      if(locked&&m!=='navigate')return;
       mode=m;
       if(m==='navigate'){sel=null;setTool(null);}
       if(m==='sculpt')setTool(null);
@@ -106,6 +107,7 @@ const Engine=(()=>{
       emit('mode',m);
     }
     function setTool(t){
+      if(locked&&t)return;
       if(tool&&tool.end)tool.end();
       tool=t;
       if(t){sel=null;refresh();}
@@ -212,7 +214,10 @@ const Engine=(()=>{
       e.preventDefault();rotateSelected(e.rotation-lastGesture);lastGesture=e.rotation;
     });
 
-    const api={define,tag,select,refresh,update,act,changed,setMode,setTool,rayHit,
+    // a locked engine only navigates: used for read-only plans
+    function setLocked(value){locked=value;if(value){setTool(null);setMode('navigate');}}
+
+    const api={define,tag,select,refresh,update,act,changed,setMode,setTool,setLocked,rayHit,
       get selected(){return sel;},
       get selectedRecord(){return recordOf(sel);},
       get mode(){return mode;},
