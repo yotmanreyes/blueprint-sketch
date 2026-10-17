@@ -13,33 +13,20 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--display)}
-.wrap{position:fixed;inset:0}
+.wrap{position:fixed;inset:0;display:grid;--rail-w:82px;--dock-w:330px;--rail-h:0px;--dock-h:0px;grid-template-columns:var(--rail-w) minmax(0,1fr) var(--dock-w);grid-template-rows:60px minmax(0,1fr) 44px;grid-template-areas:"top top top" "rail stage dock" "status status status"}
+.nopanel{--dock-w:0px}
 .glass{background:rgba(20,21,22,.86);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:4px}
-header{position:absolute;z-index:2;left:max(12px,env(safe-area-inset-left,0px));top:12px;max-width:calc(100% - 24px - 352px);display:grid;gap:8px;padding:10px 12px}
-.titlebar{display:flex;gap:12px;align-items:center;justify-content:space-between}
-h1{font-weight:800;font-size:1.1rem;margin:0}
-.nopanel aside{display:none}
-.nopanel header{max-width:none}
-.nopanel #selbar{right:12px}
-@media (max-width:900px){header{right:12px;max-width:none}}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
 button{font:inherit;color:var(--ink)}
 .seg button,.btn{font-size:.82rem;padding:6px 11px;border:1px solid var(--line);background:var(--panel);border-radius:3px;cursor:pointer}
 .seg button[aria-pressed="true"],.btn.on{background:var(--accent);border-color:var(--accent);color:#1a1209}
 .btn:hover,.seg button:hover{border-color:var(--muted)}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-#view{position:absolute;inset:0;background:#0b1620;overflow:hidden;touch-action:none}
+#view{grid-area:stage;position:relative;background:#0b1620;overflow:hidden;touch-action:none;min-width:0}
 #view canvas{display:block;width:100%;height:100%}
 .hint{font-size:.72rem;color:var(--muted);margin:0}
-#selbar{position:absolute;left:12px;right:364px;bottom:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:rgba(20,21,22,.92);border:1px solid var(--line);border-radius:4px;padding:8px}
-@media (max-width:900px){#selbar{right:12px;bottom:calc(46vh + 20px)}.nopanel #selbar{bottom:12px}}
-#selbar b{font-size:.85rem;margin-right:4px}
-#selbar .pos{font-family:var(--mono);font-size:.75rem;color:var(--muted);margin-right:auto}
-#selbar .btn{padding:5px 9px}
-aside{position:absolute;z-index:2;right:max(12px,env(safe-area-inset-right,0px));top:12px;width:340px;max-height:calc(100% - 24px);display:flex;flex-direction:column;background:rgba(28,30,32,.92);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:4px}
-@media (max-width:900px){aside{left:12px;width:auto;top:auto;bottom:12px;max-height:46vh}}
-.tabs{display:flex;flex:none;border-bottom:1px solid var(--line);overflow-x:auto}
-.tabs button{flex:1;background:none;border:0;padding:10px 6px;font-size:.8rem;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs{display:flex;flex-wrap:wrap;flex:none;border-bottom:1px solid var(--line)}
+.tabs button{flex:1 0 25%;background:none;border:0;padding:10px 4px;font-size:.78rem;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
 .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .pane{padding:14px;display:grid;gap:14px;align-content:start;min-height:0;overflow:auto}
 aside .pane:last-child{flex:none}
@@ -75,7 +62,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .note{font-size:.78rem;color:var(--muted);margin:0;line-height:1.45}
 .foot{display:flex;flex-wrap:wrap;gap:6px}
 #toast{font-size:.78rem;color:var(--accent)}
-#modes button{font-weight:600}
 .model{display:grid;grid-template-columns:1fr auto;gap:2px}
 .model button.x{padding:0 7px;font-size:.7rem;border:1px solid var(--line);background:var(--panel2);border-radius:3px;cursor:pointer;color:var(--muted)}
 .lib .thumb{width:30px;height:30px;border-radius:3px;background:#0b1620;object-fit:cover}
@@ -98,6 +84,68 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #remoteBanner{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:3;padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;max-width:min(560px,calc(100% - 32px))}
 #remoteMsg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(380px,calc(100% - 32px));padding:18px;display:grid;gap:10px;text-align:center;z-index:4}
 #remoteMsg h2{margin:0;font-size:1.1rem}#remoteMsg p{margin:0;font-size:.85rem;color:var(--muted)}#remoteMsg .foot{justify-content:center}
+/* barras: superior (modos), izquierda (herramientas), inferior (nivel, vista y ayuda) y panel derecho */
+.topbar{grid-area:top;z-index:3;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:0 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:grid;line-height:1.2;min-width:0}
+.brand h1{font-size:1rem;letter-spacing:.01em}
+.brand .hint{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.actions{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+.actions .btn{min-width:38px;height:36px;font-size:1rem;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.actions .btn:disabled{opacity:.35;cursor:default}
+#modes{flex-wrap:nowrap;gap:4px;padding:4px;background:var(--bg);border:1px solid var(--line);border-radius:12px}
+#modes button{display:flex;align-items:center;gap:9px;padding:9px 20px;font-size:.98rem;font-weight:800;border:0;border-radius:9px;background:transparent;color:var(--muted)}
+#modes button svg{width:22px;height:22px;flex:none}
+#modes button kbd{font-family:var(--mono);font-size:.65rem;font-weight:400;opacity:.75;border:1px solid currentColor;border-radius:3px;padding:0 5px}
+#modes button:hover{color:var(--ink);background:var(--panel2)}
+#modes button[aria-pressed="true"]{color:#101010;background:var(--mode,var(--accent));box-shadow:0 3px 14px rgba(0,0,0,.45)}
+#modes button[data-v="navigate"]{--mode:#5aa9e6}
+#modes button[data-v="sculpt"]{--mode:#c08adf}
+#tools{grid-area:rail;display:flex;flex-direction:column;gap:6px;padding:10px 8px;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto}
+#tools button{display:grid;justify-items:center;gap:4px;padding:9px 2px;font-size:.66rem;font-weight:600;white-space:nowrap;border:1px solid transparent;border-radius:9px;background:none;color:var(--muted);cursor:pointer}
+#tools button svg{width:28px;height:28px}
+#tools button:hover{background:var(--panel2);color:var(--ink)}
+#tools button[aria-pressed="true"]{background:var(--accent);color:#1a1209}
+.status{grid-area:status;display:flex;align-items:center;gap:18px;padding:0 12px;background:var(--panel);border-top:1px solid var(--line);overflow:hidden}
+.status .group{display:flex;align-items:center;gap:8px;flex:none}
+.status .group>span{font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.status .seg{flex-wrap:nowrap;gap:4px}
+.status .seg button{padding:4px 10px;font-size:.78rem;white-space:nowrap}
+.status #hint{flex:1;min-width:0;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#navpad{position:absolute;top:12px;right:12px;z-index:2;display:grid;grid-template-columns:repeat(3,44px);gap:4px;padding:8px;background:rgba(20,21,22,.88);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(6px)}
+#navpad b{grid-column:1/-1;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:600}
+#navpad button{height:44px;font-size:1.15rem;border:1px solid var(--line);background:var(--panel2);border-radius:8px;cursor:pointer;touch-action:none;user-select:none}
+#navpad button.turn{border-color:#5aa9e6;color:#5aa9e6}
+#navpad button:hover{border-color:var(--muted)}
+#navpad button:active{background:var(--accent);color:#1a1209;border-color:var(--accent)}
+#selbar{position:absolute;left:12px;right:12px;bottom:12px;z-index:2;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;background:rgba(20,21,22,.94);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+#selbar b{font-size:.95rem;margin-right:2px}
+#selbar .pos{font-family:var(--mono);font-size:.75rem;color:var(--muted);margin-right:auto}
+#selbar .grp{display:flex;align-items:center;gap:5px}
+#selbar .grp>span{font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:3px}
+#selbar .btn{padding:6px 10px}
+#selbar .grp.move .btn,#selbar .grp.turn .btn{min-width:44px;height:42px;font-size:1.2rem;font-weight:700;border-width:2px}
+#selbar .grp.move .btn{border-color:var(--accent);color:var(--accent)}
+#selbar .grp.turn .btn{border-color:#5aa9e6;color:#5aa9e6}
+#selbar .grp .btn:hover{background:var(--panel2)}
+aside{grid-area:dock;display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;background:var(--panel);border-left:1px solid var(--line)}
+.nopanel aside{display:none}
+aside .pane:not(:last-child){flex:1}
+@media (max-width:900px){
+  .wrap{--rail-w:0px;--rail-h:64px;--dock-h:40vh;--dock-w:0px;grid-template-columns:minmax(0,1fr);grid-template-rows:60px var(--rail-h) minmax(0,1fr) var(--dock-h) 44px;grid-template-areas:"top" "rail" "stage" "dock" "status"}
+  .nopanel{--dock-h:0px}
+  #tools{flex-direction:row;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden}
+  #tools button{min-width:64px}
+  aside{border-left:0;border-top:1px solid var(--line)}
+  .status{overflow-x:auto}.status #hint{display:none}
+}
+@media (max-width:640px){
+  .topbar{grid-template-columns:auto auto;justify-content:space-between;padding:0 8px;gap:8px}
+  .brand{display:none}
+  #modes button{padding:9px 12px}#modes button .lbl,#modes button kbd{display:none}
+  #navpad{grid-template-columns:repeat(3,38px)}#navpad button{height:38px}
+}
+.readonly{--rail-w:0px;--rail-h:0px}
+.readonly #tools{display:none!important}
 .readonly #levels .edit,.readonly #undoBtn,.readonly #redoBtn,.readonly aside .pane:last-child,.readonly #modes button:not([data-v="navigate"]),.readonly #tools,.readonly #tabs button:not([data-t="planos"]):not([data-t="cantidades"]),.readonly #selbar,.readonly #empty{display:none!important}
 #levels button.edit{border-style:dashed}
 .lvrow{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}
@@ -131,34 +179,32 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
     </div>
     <div id="remoteBanner" class="glass" hidden></div>
     <div id="remoteMsg" class="glass" hidden></div>
+    <div id="navpad" role="group" aria-label="Mover la cámara"><b>Cámara</b>
+      <button class="turn" data-k="q" title="Girar a la izquierda (Q)" aria-label="Girar a la izquierda">⟲</button><button data-k="w" title="Avanzar (W)" aria-label="Avanzar">▲</button><button class="turn" data-k="e" title="Girar a la derecha (E)" aria-label="Girar a la derecha">⟳</button>
+      <button data-k="a" title="Desplazar a la izquierda (A)" aria-label="Desplazar a la izquierda">◀</button><button data-k="home" title="Restablecer la vista" aria-label="Restablecer la vista">⌂</button><button data-k="d" title="Desplazar a la derecha (D)" aria-label="Desplazar a la derecha">▶</button>
+      <button data-k="-" title="Alejar (−)" aria-label="Alejar">−</button><button data-k="s" title="Retroceder (S)" aria-label="Retroceder">▼</button><button data-k="+" title="Acercar (+)" aria-label="Acercar">+</button>
+    </div>
     <div id="selbar" hidden></div>
   </div>
 
-  <header class="glass">
-    <div class="titlebar"><div><h1>Blueprint Sketch</h1><p class="hint" id="planTitle"></p><p class="hint" id="shareBadge" hidden></p></div><span class="foot"><button class="btn" id="undoBtn" aria-label="Deshacer" title="Deshacer (Ctrl/Cmd+Z)" disabled>↶</button><button class="btn" id="redoBtn" aria-label="Rehacer" title="Rehacer (Ctrl/Cmd+Shift+Z)" disabled>↷</button><button class="btn" id="panelBtn" aria-expanded="true">Panel</button></span></div>
+  <header class="topbar">
+    <div class="brand"><h1>Blueprint Sketch</h1><p class="hint" id="planTitle"></p><p class="hint" id="shareBadge" hidden></p></div>
     <div class="seg" id="modes" role="group" aria-label="Modo">
-      <button data-v="navigate" aria-pressed="false">Navegar</button>
-      <button data-v="build" aria-pressed="true">Construir</button>
-      <button data-v="sculpt" aria-pressed="false">Esculpir</button>
+      <button data-v="navigate" aria-pressed="false" title="Navegar: solo mueve la cámara (1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg><span class="lbl">Navegar</span><kbd>1</kbd></button>
+      <button data-v="build" aria-pressed="true" title="Construir: selecciona, mueve y dibuja (2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 20V9l7-5 7 5v11M10 20v-6h4v6"/></svg><span class="lbl">Construir</span><kbd>2</kbd></button>
+      <button data-v="sculpt" aria-pressed="false" title="Esculpir: estira con manijas (3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"/></svg><span class="lbl">Esculpir</span><kbd>3</kbd></button>
     </div>
-    <div class="seg" id="tools" role="group" aria-label="Herramienta">
-      <button data-v="select" aria-pressed="true">Seleccionar</button>
-      <button data-v="wall" aria-pressed="false">Muro</button>
-      <button data-v="room" aria-pressed="false">Habitación</button>
-      <button data-v="door" aria-pressed="false">Puerta</button>
-      <button data-v="window" aria-pressed="false">Ventana</button>
-      <button data-v="stair" aria-pressed="false">Escalera</button>
-    </div>
-    <div class="seg" id="levels" role="group" aria-label="Nivel"></div>
-    <div class="seg" id="cam">
-      <button data-v="planta" aria-pressed="true">Planta 3D</button>
-      <button data-v="entrada" aria-pressed="false">Cuarto desde la entrada</button>
-      <button data-v="cuarto2" aria-pressed="false">Cuarto hacia el pasillo</button>
-      <button data-v="pasillo" aria-pressed="false">Pasillo</button>
-      <button data-v="bano" aria-pressed="false">Baño</button>
-    </div>
-    <p class="hint" id="hint">Arrastra un mueble o la ventana para moverlos · arrastra el fondo para girar · rueda o pellizco para acercar · pasos de 5 cm</p>
+    <div class="actions"><button class="btn" id="undoBtn" aria-label="Deshacer" title="Deshacer (Ctrl/Cmd+Z)" disabled>↶</button><button class="btn" id="redoBtn" aria-label="Rehacer" title="Rehacer (Ctrl/Cmd+Shift+Z)" disabled>↷</button><button class="btn" id="panelBtn" aria-expanded="true" title="Mostrar u ocultar el panel">Panel</button></div>
   </header>
+
+  <nav id="tools" role="group" aria-label="Herramienta">
+    <button data-v="select" aria-pressed="true" title="Seleccionar y mover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 7-6 2-2 6z"/></svg>Seleccionar</button>
+    <button data-v="wall" aria-pressed="false" title="Dibujar un muro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h18v8H3zM9 8v8M15 8v8"/></svg>Muro</button>
+    <button data-v="room" aria-pressed="false" title="Dibujar una habitación"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16"/><path d="M4 11h7M11 11V4"/></svg>Habitación</button>
+    <button data-v="door" aria-pressed="false" title="Colocar una puerta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4h9l3 2v15M3 21h18M12 12h.01"/></svg>Puerta</button>
+    <button data-v="window" aria-pressed="false" title="Colocar una ventana"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16"/><path d="M12 4v16M4 12h16"/></svg>Ventana</button>
+    <button data-v="stair" aria-pressed="false" title="Colocar una escalera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h5v-4h4v-4h4V8h5"/></svg>Escalera</button>
+  </nav>
 
   <aside>
     <div class="tabs" role="tablist" id="tabs">
@@ -184,6 +230,12 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
       <div id="resetConfirm" hidden class="foot"><span class="note">¿Borrar todos los cambios?</span><button class="btn on" id="resetYes">Sí, restablecer</button><button class="btn" id="resetNo">Cancelar</button></div>
     </div>
   </aside>
+
+  <footer class="status">
+    <div class="group"><span>Nivel</span><div class="seg" id="levels" role="group" aria-label="Nivel"></div></div>
+    <div class="group"><span>Vista</span><div class="seg" id="cam"></div></div>
+    <p class="hint" id="hint"></p>
+  </footer>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -914,13 +966,17 @@ engine.define('stair',{
 });
 
 /* ---- barra de selección ---- */
+const MOVE_ACTIONS=['l','u','d','r'],TURN_ACTIONS=['rotL','rotR','rot','rotBack'];
 function renderSelbar(s){
   const bar=$('selbar'),rec=s&&engine.selectedRecord;
   bar.hidden=!rec||engine.mode==='navigate';
   if(bar.hidden)return;
   const def=engine.kind(s.kind),sculpt=engine.mode==='sculpt';
+  const actions=sculpt?[]:def.actions(rec),moves=actions.filter(b=>MOVE_ACTIONS.includes(b.a)),turns=actions.filter(b=>TURN_ACTIONS.includes(b.a));
+  const others=actions.filter(b=>!moves.includes(b)&&!turns.includes(b)),button=b=>`<button class="btn" data-a="${b.a}"${b.aria?` aria-label="${b.aria}"`:''}>${b.t}</button>`;
+  const group=(name,css,list)=>list.length?`<div class="grp ${css}"><span>${name}</span>${list.map(button).join('')}</div>`:'';
   bar.innerHTML=`<b>${s.kind==='item'?iconSvg(rec.t):''}${def.label(rec)}</b><span class="pos">${def.describe(rec)}</span>`+
-    (sculpt?'<span class="note">Arrastra las manijas naranjas para estirar</span>':def.actions(rec).map(b=>`<button class="btn" data-a="${b.a}"${b.aria?` aria-label="${b.aria}"`:''}>${b.t}</button>`).join(''))+
+    (sculpt?'<span class="note">Arrastra las manijas naranjas para estirar</span>':group('Mover','move',moves)+group('Girar','turn',turns)+group('','',others))+
     (def.fields?`<div class="fields">${def.fields(rec).map(f=>`<label class="fld">${esc(f.label)}<input type="number" data-f="${f.id}" value="${f.value}" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${esc(f.label)} (${f.unit})"><span>${f.unit}</span></label>`).join('')}</div>`:'');
 }
 $('selbar').addEventListener('click',e=>{const b=e.target.closest('button');if(b)engine.act(b.dataset.a);});
@@ -1063,9 +1119,8 @@ const toolName=()=>Object.keys(TOOLS).find(k=>TOOLS[k]===engine.tool)||'select';
 function syncModeUI(){
   const m=engine.mode,t=toolName();
   $('modes').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===m));
-  $('tools').hidden=m!=='build';
-  $('tools').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===t));
-  $('hint').textContent=m==='build'&&HINTS[t]?HINTS[t]:HINTS[m];
+  $('tools').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',m==='build'&&b.dataset.v===t));
+  $('hint').textContent=m==='build'&&HINTS[t]?HINTS[t]:HINTS[m];$('hint').title=$('hint').textContent;
   renderSelbar(engine.selected);need=true;
 }
 function renderEmpty(){
@@ -1074,6 +1129,7 @@ function renderEmpty(){
 }
 seg($('modes'),engine.setMode);
 seg($('tools'),v=>{
+  if(engine.mode!=='build')engine.setMode('build');
   if(v==='stair'&&!hasLevelAbove()){showToast('Agrega un nivel arriba para conectarlo con una escalera.');engine.setTool(null);syncModeUI();return;}
   engine.setTool(TOOLS[v]||null);
 });
@@ -1753,6 +1809,16 @@ addEventListener('keydown',e=>{
 });
 addEventListener('keyup',e=>{navFast=e.shiftKey;heldKeys.delete(navName(e));});
 addEventListener('blur',()=>heldKeys.clear());
+const navpad=$('navpad');
+navpad.addEventListener('pointerdown',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  e.preventDefault();
+  if(b.dataset.k==='home'){setCam(camKey);return;}
+  heldKeys.add(b.dataset.k);need=true;
+});
+for(const type of['pointerup','pointercancel','pointerleave'])navpad.addEventListener(type,e=>{
+  const b=e.target.closest('button');if(b)heldKeys.delete(b.dataset.k);
+},true);
 
 const NAV_SPEED=.25,NAV_MIN_SPEED=1.2,NAV_TURN=1.2,NAV_ZOOM=.7,NAV_FAST=3,NAV_DIST_MIN=.6,NAV_DIST_MAX=40;
 const groundForward=()=>{

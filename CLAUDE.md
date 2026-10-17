@@ -11,7 +11,7 @@ Sistema de coordenadas, en metros y vista desde arriba: `x` de izquierda a derec
 ## Archivos
 
 - `src/layout.js`, `src/engine.js`, `src/icons.js`, `src/plan-store.js` — módulos compartidos del editor, sin build: se cargan con `<script>`.
-- `src/editor-3d.html` — editor 3D con three.js r128 por CDN (UMD, globales `THREE` y `THREE.OrbitControls`). El visor ocupa toda la pantalla y el encabezado y el panel flotan encima (el botón *Panel* lo oculta). La escena tiene estructura de plano: cuadrícula de 0,5 m (líneas principales cada 1 m), contorno de muros y cotas, visibles en la vista de planta. Pestañas:
+- `src/editor-3d.html` — editor 3D con three.js r128 por CDN (UMD, globales `THREE` y `THREE.OrbitControls`). La interfaz es una cuadrícula como la de un editor profesional: barra superior con los modos (Navegar, Construir, Esculpir) bien visibles y deshacer/rehacer; barra izquierda con las herramientas (al elegir una, pasa solo a Construir); barra inferior con nivel, vista y ayuda; panel derecho con las pestañas (el botón *Panel* lo oculta); sobre el visor, el pad de cámara (mantener pulsado mueve o gira, usa las mismas teclas que el teclado) y la barra de selección con los grupos *Mover* y *Girar*. La escena tiene estructura de plano: cuadrícula de 0,5 m (líneas principales cada 1 m), contorno de muros y cotas, visibles en la vista de planta. Pestañas:
   - **Estilo:** 5 presets, metal y madera.
   - **Muebles:** biblioteca arrastrable con snap de 5 cm, girar, subir y bajar, duplicar y eliminar.
   - **Paredes:** acabado por cara (pintura, microcemento, ladrillo, enchape 60×120 o metro, listones).
