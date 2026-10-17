@@ -27,6 +27,14 @@ Sistema de coordenadas, en metros y vista desde arriba: `x` de izquierda a derec
 - **Cantidades** (`src/quantities.js`): áreas por habitación, superficie de muro neta de vanos, acabados por cara, pisos, vanos por tamaño y muebles por tipo. Los precios van en `state.prices` (claves como `wall`, `finish:pintura`, `floor:<clave>`, `door:0.9x2.1`, `item:<tipo>`, `contingency`) y la moneda en `state.currency`; el servidor los valida.
 - Las pruebas (`npm test`) cubren todo esto además de la API.
 
+## Modelos 3D importados
+
+- `src/models.js`: solo `.glb` autocontenido (≤ 15 MB, ≤ 600.000 vértices). `Models.fit` convierte a metros (mayor de 350 → mm, mayor de 8 → cm), centra en x/z y apoya en y = 0; el frente del modelo mira a +z como en el resto de piezas. Los archivos viven en IndexedDB (`bs-models-v1`); el plano guarda solo `state.models[id] = {name, w, d, h}` y los muebles usan `t = id` (`m_` + hex).
+- `syncCustomLib()` añade esos modelos a `LIB` con `custom: true`; hay que llamarla cada vez que `state` se reemplaza. Mientras carga, o si falta, una caja hace de sustituto (azul = cargando, naranja con alambre = no disponible).
+- El escalado de una pieza es `sx`, `sy`, `sz`; `sy` solo existe para modelos importados.
+- Seguridad: el cargador bloquea todo lo que no sea `data:` o `blob:` (`setURLModifier`), así un modelo no puede provocar peticiones externas. El servidor repite la comprobación (`checkGlb`): cabecera, longitud declarada, trozo JSON y ninguna referencia externa.
+- En planos compartidos: `PUT/GET /api/plans/:id/models/:mid` (binario, ≤ 4 MB por el límite de 4,5 MB de las funciones, 40 archivos y 40 MB por plano). Se guarda primero el archivo y luego se registra en `plan.modelFiles`, así un modelo registrado siempre tiene archivo. Los editores suben lo que falta antes de guardar; los demás descargan lo que no tienen y lo guardan marcado con `source` para que no aparezca en su biblioteca. Se sirven `private, immutable` y `nosniff`.
+
 ## Planos compartidos
 
 Un plano se puede subir a la nube desde la pestaña **Planos** (botón *Compartir*). Cada plano compartido tiene su propia ruta, `/p/<id>`, y el acceso se da con **enlaces por rol** en vez de cuentas:

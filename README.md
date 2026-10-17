@@ -13,7 +13,7 @@ Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeli
   - *Navigate* only moves the camera.
   - *Build* selects, moves and draws.
   - *Sculpt* stretches walls, openings, floors and furniture with handles.
-- **Furnish and style.** A library of furniture and accessories, five style presets, wall finishes per side (paint, microcement, brick, tile, wood slats) and floor finishes per room.
+- **Furnish and style.** A library of furniture and accessories, **your own 3D models** (import `.glb` files), five style presets, wall finishes per side (paint, microcement, brick, tile, wood slats) and floor finishes per room.
 - **Type exact measurements.** Select anything and edit its numbers in the bar below: wall length and thickness, door and window size and position, room width and depth (the walls follow), furniture position, rotation and size.
 - **Undo and redo** every change with `Ctrl/Cmd+Z` and `Ctrl/Cmd+Shift+Z`.
 - **Turn things freely.** Rotate a piece with its handle, `Alt`/`Shift` + scroll, a trackpad twist (Safari) or `Shift` + arrow keys.
@@ -29,6 +29,8 @@ Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeli
   | Owner | Everything, plus create and revoke links and delete the plan. |
 
   Links can be named and revoked at any time. The access token lives in the URL fragment (`#k=…`), so it never reaches server logs, and the server only stores its hash.
+
+**3D models.** Import `.glb` files (up to 15 MB, self-contained). They are measured on import (files in centimetres or millimetres are brought to metres), centred on the floor, and can be moved, turned and resized like any piece. They are kept in your browser and travel with a shared plan (up to 4 MB each, 40 per plan), so everyone sees the real model. Draco, KTX2 and Meshopt compression are not supported yet, and nothing a model references outside its own file is ever fetched.
 
 > The interface is currently in Spanish. Strings are plain text in `src/editor-3d.html`, so translating is a find-and-replace away; proper i18n is on the roadmap.
 
@@ -74,6 +76,7 @@ src/
   plan-store.js    saved plans in the browser, import and export
   sharing.js       share links, autosave, live updates, conflicts
   icons.js         line icons for the furniture library
+  models.js        imported .glb models: checks, measuring, storage in the browser
 api/               Vercel functions for shared plans (Vercel Blob)
 test/              unit tests and API tests against an in-memory store
 ```
@@ -153,11 +156,11 @@ To check the real Blob store (it writes, reads and deletes one temporary file), 
 
 ## What it is, and what it is not
 
-Blueprint Sketch is for **schematic design**: quick layouts, conversations with clients and contractors, teaching and prototyping. It is not a BIM or CAD replacement. It has no structural or MEP calculation, no stairs or roofs, no multi-storey buildings, no model import and no photorealistic rendering, and its drawings are not construction documents.
+Blueprint Sketch is for **schematic design**: quick layouts, conversations with clients and contractors, teaching and prototyping. It is not a BIM or CAD replacement. It has no structural or MEP calculation, no stairs or roofs, no multi-storey buildings, only basic `.glb` import (no other formats) and no photorealistic rendering, and its drawings are not construction documents.
 
 ## Roadmap
 
-- Import 3D models (glTF) to furnish with real products.
+- More model formats and compressed glTF (Draco, KTX2).
 - Several levels, stairs, and curved or diagonal walls.
 - Real internationalisation.
 
