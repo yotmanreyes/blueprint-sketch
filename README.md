@@ -77,6 +77,9 @@ src/
   layout.js        the plan model: walls, openings, floors, stairs, corner joins
   levels.js        storeys: the open level and the parked ones
   templates.js     the ready-made plans offered when a workspace starts
+  catalog.js       the pieces, their standard sizes and the finishes
+  agent-tools.js   what an AI agent may do to a plan (shared by the assistant and the MCP server)
+mcp/               the MCP server
   history.js       undo and redo as snapshots
   drawing.js       a plan as 2D drawing primitives (walls, door swings, dimensions)
   export.js        PDF and DXF writers, sheet and scale selection
@@ -143,6 +146,27 @@ How it uses storage:
 - Blob's free tier allows 2,000 writes and 10,000 reads a month. The client therefore batches saves (one every 4 seconds at most), checks for other people's changes every 45 seconds and when the tab returns, and flushes pending edits when the page is hidden.
 
 What an uploaded plan may contain is whitelisted and bounded server-side (`api/_lib/validate.js`), plan creation is rate limited per IP, and link tokens are random and stored only as hashes.
+
+## Work with AI agents (MCP)
+
+`mcp/server.mjs` is a [Model Context Protocol](https://modelcontextprotocol.io) server. An agent connected to it builds a plan with the **same tools and rules as the editor**: it draws rooms, walls, floors, doors, windows, stairs and levels, places furniture against walls at standard sizes, uses layers and templates, and can run a checker that reports overlapping floors or pieces that stick out of their rooms. Nothing is drawn by the agent on its own: every tool goes through the plan model, and the server refuses (and undoes) anything the server-side validator would not accept.
+
+```bash
+# Claude Code
+claude mcp add blueprint-sketch -- node /path/to/blueprint-sketch/mcp/server.mjs
+```
+
+```jsonc
+// Claude Desktop, Cursor and others: add to their MCP settings
+{ "mcpServers": { "blueprint-sketch": {
+    "command": "node",
+    "args": ["/path/to/blueprint-sketch/mcp/server.mjs"],
+    "env": { "BLUEPRINT_PLAN": "/path/to/my-house.json" } } } }
+```
+
+The plan is saved to `BLUEPRINT_PLAN` (default `./blueprint-plan.json`) after every change. Open it in the editor from **Planos → Importar**, or let the agent call `share_plan` to get a link (and `push_plan` / `pull_plan` to keep it in sync). `BLUEPRINT_READONLY=1` lets an agent look but not touch. There is no build step and no extra dependency; it needs Node 22.
+
+The editor also has an **Asistente** tab with the same tools for a model of your choice (OpenAI, Anthropic, Google Gemini or any OpenAI-compatible endpoint) using your own API key.
 
 ## Tests
 

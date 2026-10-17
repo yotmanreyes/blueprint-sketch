@@ -1,14 +1,19 @@
 {
   "name": "blueprint-sketch",
+  "version": "0.17.0",
   "private": true,
   "type": "module",
   "description": "Shared plans API for the remodeling editor. The editor itself is static and needs no build.",
   "engines": {
     "node": "22.x"
   },
+  "bin": {
+    "blueprint-sketch-mcp": "mcp/server.mjs"
+  },
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "check:blob": "node scripts/check-blob.mjs"
+    "check:blob": "node scripts/check-blob.mjs",
+    "mcp": "node mcp/server.mjs"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.2"
