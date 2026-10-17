@@ -166,6 +166,15 @@ check('creation is rate limited per IP', () => assert.ok(limited >= 5));
   check('opening a plan costs one read', () => assert.equal(storage.stats.reads - before, 1));
 }
 
+// the real Blob store compresses large bodies and returns a weak etag
+{
+  const { strongEtag } = await import(ROOT + '_lib/storage.js');
+  check('a weak etag is turned into the strong one that conditional writes need', () => {
+    assert.equal(strongEtag('W/"abc123"'), '"abc123"');
+    assert.equal(strongEtag('"abc123"'), '"abc123"');
+  });
+}
+
 // method guard and delete
 r = await call(create, { method: 'GET' });
 check('wrong method is 405', () => assert.equal(r.status, 405));

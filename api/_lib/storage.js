@@ -5,13 +5,17 @@ export class Conflict extends Error {}
 
 const alreadyExists = e => /already exists/i.test(String(e && e.message));
 
+// Larger bodies are compressed in transit and come back with a weak etag (W/"..."), while a
+// conditional write only matches the strong form that put() returned.
+export const strongEtag = etag => String(etag).replace(/^W\//, '');
+
 // The production adapter: a private Vercel Blob store. Reads skip the cache so a read always
 // sees the latest write, and writes can be made conditional on the etag that was read.
 export const blobStorage = {
   async read(path) {
     const result = await get(path, { access: 'private', useCache: false });
     if (!result || result.statusCode !== 200) return null;
-    return { text: await new Response(result.stream).text(), etag: result.blob.etag };
+    return { text: await new Response(result.stream).text(), etag: strongEtag(result.blob.etag) };
   },
   async write(path, text, { ifMatch, create } = {}) {
     try {
