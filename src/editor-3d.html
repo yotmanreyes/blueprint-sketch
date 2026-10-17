@@ -172,6 +172,8 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 <script src="plan-store.js"></script>
 <script src="sharing.js"></script>
 <script src="history.js"></script>
+<script src="drawing.js"></script>
+<script src="export.js"></script>
 <script>
 const H=2.4, SNAP=.05;
 const $=id=>document.getElementById(id);
@@ -1078,6 +1080,40 @@ addEventListener('keydown',e=>{
   else if(k==='y'){e.preventDefault();stepHistory(1);}
 });
 
+/* ================= exportar dibujo ================= */
+const exportOptions={paper:'A3',scale:'auto'};
+const slug=text=>String(text).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'plano';
+const currentPlanName=()=>REMOTE_ID?(remote&&remote.name)||'Plano compartido':plans.active.name;
+
+function exportBlock(){
+  const scales=[20,25,50,75,100,200].map(n=>`<option value="${n}" ${String(exportOptions.scale)===String(n)?'selected':''}>1:${n}</option>`).join('');
+  const papers=Object.keys(Export.PAPERS).map(k=>`<option ${exportOptions.paper===k?'selected':''}>${k}</option>`).join('');
+  return `<div><h3>Exportar dibujo a escala</h3>
+    <div class="roles"><select id="exPaper" aria-label="Tamaño de hoja">${papers}</select>
+    <select id="exScale" aria-label="Escala"><option value="auto" ${exportOptions.scale==='auto'?'selected':''}>Escala automática</option>${scales}</select></div>
+    <p class="note" id="exInfo" style="margin-top:6px"></p>
+    <div class="foot" style="margin-top:8px"><button class="btn on" id="exPdf">PDF</button><button class="btn" id="exDxf">DXF (CAD)</button></div>
+    <p class="note" style="margin-top:6px">El PDF es vectorial y va a escala. El DXF está en milímetros y abre en AutoCAD, LibreCAD y programas parecidos.</p></div>`;
+}
+function download(bytes,filename,type){
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes],{type}));a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function wireExport(){
+  const empty=Layout.isEmpty(state.layout)&&!state.items.length;
+  const info=()=>{
+    if(empty){$('exInfo').textContent='Dibuja algo para poder exportarlo.';return;}
+    const s=Export.sheet(Drawing.build(state,LIB),exportOptions);
+    $('exInfo').textContent=`Se dibujará a 1:${s.den} en ${s.paper} ${s.orientation==='landscape'?'horizontal':'vertical'}${s.fits?'':'. No cabe: elige una hoja más grande o una escala menor.'}`;
+  };
+  $('exPaper').onchange=e=>{exportOptions.paper=e.target.value;info();};
+  $('exScale').onchange=e=>{exportOptions.scale=e.target.value;info();};
+  $('exPdf').disabled=$('exDxf').disabled=empty;
+  const meta=()=>({name:currentPlanName(),date:new Date().toLocaleDateString('es',{day:'numeric',month:'long',year:'numeric'})});
+  $('exPdf').onclick=()=>{const r=Export.pdf(Drawing.build(state,LIB),meta(),exportOptions);download(r.bytes,slug(currentPlanName())+'.pdf','application/pdf');};
+  $('exDxf').onclick=()=>{const r=Export.dxf(Drawing.build(state,LIB),meta(),exportOptions);download(r.bytes,slug(currentPlanName())+'.dxf','application/dxf');};
+  info();
+}
+
 /* ================= planos guardados ================= */
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let pendingDelete=null;
@@ -1144,9 +1180,11 @@ function renderPlanos(){
     <p class="note" style="margin-top:6px">Los cambios se guardan solos en este navegador. Guarda una copia antes de probar algo distinto.</p>
     <div class="foot" style="margin-top:8px"><button class="btn" id="plCopy">Guardar copia</button><button class="btn" id="plNew">Nuevo desde cero</button><button class="btn" id="plHouse">Plantilla casa de ejemplo</button></div></div>
     <div><h3>Mis planos (${list.length})</h3><div class="plans" id="planlist">${list.map(planRow).join('')}</div></div>${knownRows()}
+    ${exportBlock()}
     <div><h3>Archivo</h3><div class="foot"><button class="btn" id="plExport">Exportar plano</button><button class="btn" id="plImport">Importar…</button><input type="file" id="plFile" accept="application/json,.json" hidden></div>
     <p class="note" style="margin-top:6px">El archivo .json sirve de respaldo o para llevar el plano a otro equipo.</p></div>`;
 
+  wireExport();
   $('plName').addEventListener('change',e=>{plans.rename(plans.active.id,e.target.value);renderPlanTitle();renderPlanos();});
   $('plCopy').onclick=()=>{leavePlan();loadPlan(plans.duplicate(plans.active.id));};
   $('plNew').onclick=()=>{leavePlan();loadPlan(plans.add('Plano nuevo',blankState()));};
@@ -1275,6 +1313,7 @@ function renderShared(){
     <p class="note" style="margin-top:6px">Tu rol: <b style="color:var(--ink)">${esc(Sharing.ROLE_NAMES[remote.role])}</b>. ${esc(ROLE_HELP[remote.role])}</p>
     <p class="note">Ruta de este plano: <code>/p/${esc(REMOTE_ID)}</code></p>
     <div class="foot" style="margin-top:8px"><button class="btn" id="shCopy">Copiar a mis planos</button><button class="btn" id="shHome">Ir a mis planos</button></div></div>
+    ${exportBlock()}
     ${owner?`<div><h3>Compartir con otras personas</h3>
       <div class="roles"><select id="lkRole" aria-label="Rol del enlace"><option value="viewer">Lector · solo ve</option><option value="editor">Editor · puede cambiar el plano</option><option value="owner">Propietario · administra todo</option></select>
       <input type="text" id="lkLabel" maxlength="40" placeholder="Para quién es (opcional)" aria-label="Nombre del enlace"></div>
@@ -1285,6 +1324,7 @@ function renderShared(){
         ?'<div class="confirm" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="note">Se elimina el plano y se revocan todos los enlaces. No se puede deshacer.</span><button class="btn on" id="shDelYes">Sí, eliminar</button><button class="btn" id="shDelNo">Cancelar</button></div>'
         :'<button class="btn" id="shDel">Eliminar plano compartido</button>'}</div>`:''}`;
 
+  wireExport();
   $('shHome').onclick=()=>{location.href='/';};
   $('shCopy').onclick=()=>{plans.add(`${remote.name} (copia)`,JSON.parse(JSON.stringify(state)));showToast('Copia guardada en tus planos. Ábrela desde “Ir a mis planos”.');};
   if(!owner)return;
