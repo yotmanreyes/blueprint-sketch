@@ -138,3 +138,26 @@ test('an exported plan carries its versions and an import rebuilds them from val
   assert.deepEqual(b.list('q1').map(v => v.label), ['dos', 'uno']);
   assert.equal(b.importInto('q1', 'no es una lista', isValid), 0);
 });
+
+test('sha256 matches the reference implementation', async () => {
+  const { createHash } = await import('node:crypto');
+  for (const text of ['', 'abc', 'x'.repeat(55), 'x'.repeat(56), 'x'.repeat(64), 'plano ñ 🏠 ' + 'y'.repeat(1000)])
+    assert.equal(Versions.sha256(text), createHash('sha256').update(text).digest('hex'));
+});
+
+test('every version carries the hash of its plan and the time it was captured', () => {
+  const store = Versions.create(memory()), s = plan();
+  const a = store.add('p1', { state: s, kind: 'auto', at: 1700000000000 });
+  assert.equal(a.at, 1700000000000);
+  assert.equal(a.hash, Versions.sha256(JSON.stringify(s)));
+  const b = store.add('p1', { state: plan({ style: 'otro' }), kind: 'auto' });
+  assert.notEqual(a.hash, b.hash);
+  assert.ok(Math.abs(b.at - Date.now()) < 5000);
+});
+
+test('versions saved before hashes existed get theirs when listed', () => {
+  const s = plan(), storage = memory();
+  storage.setItem(Versions.KEY, JSON.stringify({ p1: [{ id: 'v1', at: 5, kind: 'auto', label: 'vieja', thumb: null, state: s }] }));
+  const [v] = Versions.create(storage).list('p1');
+  assert.equal(v.hash, Versions.sha256(JSON.stringify(s)));
+});

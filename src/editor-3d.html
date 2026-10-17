@@ -2126,6 +2126,7 @@ function renderPlanos(){
 const KIND_NAMES={walls:['muro','muros'],openings:['vano','vanos'],floors:['piso','pisos'],stairs:['escalera','escaleras'],items:['pieza','piezas']};
 let versionFilter='all',versionRename=null,versionRestore=null,versionDelete=null;
 
+const fmtStamp=t=>new Date(t).toLocaleString('es',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
 function diffText(d){
   if(d.same)return 'Igual al plano actual';
   const kinds=(sign,counts)=>Object.entries(counts).filter(([,n])=>n).map(([k,n])=>`${sign}${n} ${KIND_NAMES[k][n===1?0:1]}`);
@@ -2173,7 +2174,7 @@ function versionRow(v,current){
   const items=Levels.allItems(v.state).length,kind=v.kind==='auto'?'Automática':'Guardada';
   const text=diffText(Versions.diff(current,v.state));
   return `<div class="plan ver ${v.kind==='named'?'on':''}" data-id="${esc(v.id)}">
-    <button class="open" data-a="restore" aria-label="Restaurar ${esc(v.label)}">${v.thumb?`<img src="${v.thumb}" alt="">`:'<span class="ph"></span>'}<span><b>${esc(v.label)}</b><small><span class="kind">${kind}</span> · ${fmtDate(v.at)} · ${items} piezas</small><small class="d">${esc(text)}</small></span></button>
+    <button class="open" data-a="restore" aria-label="Restaurar ${esc(v.label)}">${v.thumb?`<img src="${v.thumb}" alt="">`:'<span class="ph"></span>'}<span><b>${esc(v.label)}</b><small><span class="kind">${kind}</span> · ${fmtDate(v.at)} · ${items} piezas</small><small title="SHA-256 ${esc(v.hash)} · capturada ${esc(new Date(v.at).toISOString())}">${fmtStamp(v.at)} · #${esc(v.hash.slice(0,8))}</small><small class="d">${esc(text)}</small></span></button>
     <button class="btn" data-a="copy" aria-label="Abrir ${esc(v.label)} como copia" title="Abrir como un plano nuevo, sin tocar el actual">Copia</button>
     <button class="btn" data-a="rename" aria-label="${v.kind==='auto'?'Conservar y nombrar':'Renombrar'} ${esc(v.label)}" title="${v.kind==='auto'?'Conservar y ponerle nombre':'Cambiar el nombre'}">${v.kind==='auto'?'Conservar':'Nombre'}</button>
     <button class="btn" data-a="del" aria-label="Eliminar ${esc(v.label)}">✕</button>
