@@ -19,6 +19,17 @@ Sistema de coordenadas, en metros y vista desde arriba: `x` de izquierda a derec
   - **Vanos:** lista de puertas y ventanas; el vano seleccionado se ajusta con sliders (ancho, alto, antepecho, posición en el muro).
   - **Planos:** varios diseños guardados con nombre y miniatura.
 
+## Planos compartidos
+
+Un plano se puede subir a la nube desde la pestaña **Planos** (botón *Compartir*). Cada plano compartido tiene su propia ruta, `/p/<id>`, y el acceso se da con **enlaces por rol** en vez de cuentas:
+- Un enlace es `/p/<id>#k=<token>`. El token va en el fragmento, así que no llega a los registros del servidor; el navegador lo guarda y limpia la dirección. Si un navegador tiene varios tokens del mismo plano, usa el de mayor rol.
+- Roles: **propietario** (edita, crea y revoca enlaces, elimina), **editor** (edita) y **lector** (solo navega; el editor queda bloqueado con `engine.setLocked`).
+- El servidor solo guarda el hash SHA-256 de cada token. Un token se muestra una vez, al crear el enlace.
+- Guardado automático con control de versiones: si alguien más guardó antes, el editor ofrece cargar la versión nueva o conservar la propia. Los demás clientes consultan cambios cada 8 s.
+- El estado que llega al servidor se reconstruye con una lista blanca (`api/_lib/validate.js`): ids, tipos, números y colores acotados; lo desconocido se descarta. Nunca renderizar texto de un plano compartido sin `esc()`.
+
+Piezas: `src/sharing.js` (cliente y sesión), `api/` (funciones de Vercel con Upstash Redis) y `test/api.test.mjs` (`npm test`, usa un Redis simulado). Variables de entorno: `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` (o `KV_REST_API_URL` y `KV_REST_API_TOKEN`), que pone la integración de Vercel.
+
 ## Modos del editor
 
 El editor **arranca en un plano vacío** (reutiliza el último plano sin tocar; si no hay, crea "Plano nuevo"). La casa de ejemplo está en la pestaña **Planos**, como plantilla.
@@ -79,5 +90,5 @@ Todo lo que se puede tocar en la escena es una entidad de un *kind* registrado c
 ## Convenciones
 
 - Medidas en metros. En la UI se muestran con coma decimal (`f2()`).
-- No introducir build tooling sin pedirlo: los HTML son autocontenidos y se abren directo o con un servidor estático.
+- No introducir build tooling sin pedirlo: los HTML son autocontenidos y se abren directo o con un servidor estático. El único `package.json` es para las funciones de `api/`; el editor sigue sin build y compartir solo funciona en el sitio publicado.
 - El usuario prefiere modelos parametrizados y autoajustables sobre salidas estáticas, y respuestas directas que no reabran decisiones ya tomadas.
