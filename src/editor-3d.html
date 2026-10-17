@@ -1314,6 +1314,7 @@ function applyRole(role){
   document.querySelector('.wrap').classList.toggle('readonly',readOnly);
   engine.setLocked(readOnly);
   if(readOnly)$('tabs').querySelector('[data-t="planos"]').click();
+  else engine.setMode('build');
 }
 
 async function bootRemote(id){
