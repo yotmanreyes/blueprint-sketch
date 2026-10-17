@@ -478,7 +478,7 @@ function buildLevelInto(g,L,{live,arriving,raised}){
     for(const r of Layout.subtractRects(rect,arriving)){
       const m=flatPiece(r,floorMat(FLOORS[f.f]?f.f:'marmol_blanco',r.x1-r.x0,r.z1-r.z0),0,true);m.receiveShadow=true;fg.add(m);
     }
-    if(raised)for(const r of Layout.subtractRects(growRect(rect,.1),arriving))B(g,r.x0,r.x1,-Levels.SLAB,-.004,r.z0,r.z1,M.struct);
+    if(raised)for(const r of Layout.subtractRects(growRect(rect,.1),arriving))B(g,r.x0,r.x1,-Levels.SLAB,-.004,r.z0,r.z1,M.struct).userData.slab=true;
     for(const r of Layout.subtractRects(growRect(rect,.15),cuts))ceilG.add(flatPiece(r,M.ceil,H-.002,false));
   }
   for(const w of L.walls){
@@ -505,6 +505,8 @@ function buildStruct(){
   clear(structG);const g=structG,L=state.layout;
   ceil=buildLevelInto(g,L,{live:true,arriving:stairwells(state.level),raised:state.level>0});
   ceil.visible=!isOverview();
+  if(seeThrough)makeSeeThrough(g,isFloorPiece);
+  placeGroundGrid();
   addSky(g);aimSun();
   const PG=new THREE.Group();PG.name='pend';g.add(PG);
   for(const p of L.lights)addPendant(PG,p.x,p.z,p.drop);
@@ -515,9 +517,21 @@ function buildStruct(){
 }
 
 // the other levels are context: drawn for show at their height, rebuilt only when something they depend on changes
-let showUpper=false,othersSignature='';
+// see-through copies of materials, so the levels you are not editing and the floors in the way can be looked through
+let showUpper=false,seeThrough=false,othersSignature='',seeThroughCache=new WeakMap();
+const SEE_THROUGH_OPACITY=.28;
+function seeThroughMat(m){
+  if(m===HIT_PROXY)return m;
+  let c=seeThroughCache.get(m);
+  if(!c){c=m.clone();c.transparent=true;c.opacity=Math.min(m.opacity,SEE_THROUGH_OPACITY);c.depthWrite=false;seeThroughCache.set(m,c);}
+  return c;
+}
+function makeSeeThrough(root,only=()=>true){
+  root.traverse(o=>{if(o.isMesh&&!Array.isArray(o.material)&&only(o))o.material=seeThroughMat(o.material);});
+}
+const isFloorPiece=o=>o.userData.slab||(o.parent&&o.parent.userData.entity&&o.parent.userData.entity.kind==='floor');
 function buildOthers(force=false){
-  const signature=JSON.stringify([state.level,state.levels,showUpper,showUpper?state.layout.stairs:0,state.walls,state.wallBase,state.metal,state.wood]);
+  const signature=JSON.stringify([state.level,state.levels,showUpper,seeThrough,showUpper?state.layout.stairs:0,state.walls,state.wallBase,state.metal,state.wood]);
   if(!force&&signature===othersSignature)return;
   othersSignature=signature;
   clear(othersG);
@@ -529,6 +543,7 @@ function buildOthers(force=false){
     const furniture=new THREE.Group();g.add(furniture);
     for(const it of lv.items)if(LIB[it.t])furniture.add(buildItem(it));
     const lights=[];furniture.traverse(o=>{if(o.isLight)lights.push(o);});lights.forEach(l=>l.parent.remove(l));
+    if(seeThrough)makeSeeThrough(g);
   }
   topHide();need=true;
 }
@@ -546,6 +561,13 @@ function buildGrid(){
     const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
     const l=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:0x6fa8dc,transparent:true,opacity,toneMapped:false}));l.position.y=-.004;return l;};
   scene.add(lines(false,.1),lines(true,.28));
+  groundGrid=new THREE.Group();groundGrid.add(lines(false,.05),lines(true,.14));scene.add(groundGrid);
+}
+// from the second level up, a fainter grid stays on the ground floor as a fixed reference
+let groundGrid=null;
+function placeGroundGrid(){
+  if(!groundGrid)return;
+  groundGrid.visible=state.level>0;groundGrid.position.y=Levels.offset(0,state.level);need=true;
 }
 
 function addEdges(g){
@@ -1103,7 +1125,7 @@ seg($('cam'),setCam);
 
 /* ================= paneles ================= */
 const hex=c=>'#'+new THREE.Color(c).getHexString();
-function applyMetalWood(){const m=METALS[state.metal];M.metal.color.copy(lin(m.c));M.metal.metalness=m.m;M.metal.roughness=m.r;M.wood.color.copy(lin(WOODS[state.wood].c));need=true;}
+function applyMetalWood(){seeThroughCache=new WeakMap();const m=METALS[state.metal];M.metal.color.copy(lin(m.c));M.metal.metalness=m.m;M.metal.roughness=m.r;M.wood.color.copy(lin(WOODS[state.wood].c));need=true;}
 function renderStyle(){
   $('p-estilo').innerHTML=`<div><h3>Estilos</h3><div class="style" id="styles">${Object.entries(STYLES).map(([k,s])=>`<button data-v="${k}" aria-pressed="${state.style===k}">${s.n}<span class="dots">${s.dots.map(c=>`<i style="background:${c}"></i>`).join('')}</span></button>`).join('')}</div>
     <p class="note" style="margin-top:6px">Un estilo cambia paredes, metales y madera. Los muebles y los pisos se mantienen.</p></div>
@@ -1266,7 +1288,8 @@ function pruneItems(){
 }
 function renderLevels(){
   const upper=hasLevelAbove()?`<button data-v="upper" aria-pressed="${showUpper}" title="Mostrar los niveles de arriba">Ver arriba</button>`:'';
-  $('levels').innerHTML=Levels.list(state).map(l=>`<button data-v="${l.index}" aria-pressed="${l.index===state.level}">${esc(l.name)}</button>`).join('')+upper+
+  const through=Levels.count(state)>1?`<button data-v="through" aria-pressed="${seeThrough}" title="Ver a través de los pisos y de los otros niveles">Ver entre plantas</button>`:'';
+  $('levels').innerHTML=Levels.list(state).map(l=>`<button data-v="${l.index}" aria-pressed="${l.index===state.level}">${esc(l.name)}</button>`).join('')+upper+through+
     '<button class="edit" data-v="add" aria-label="Añadir un nivel arriba">+ Nivel</button>';
 }
 function afterLevelChange(){
@@ -1289,10 +1312,11 @@ function removeLevel(i){
   if(!Levels.remove(state,i))return;
   pendingLevelDelete=null;save();afterLevelChange();
 }
+function toggleSeeThrough(){seeThrough=!seeThrough;renderLevels();buildStruct();}
 function toggleUpper(){showUpper=!showUpper;renderLevels();buildOthers();if(tab==='niveles')renderNiveles();}
 $('levels').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.v==='add')addLevel();else if(b.dataset.v==='upper')toggleUpper();else openLevel(+b.dataset.v);
+  if(b.dataset.v==='add')addLevel();else if(b.dataset.v==='upper')toggleUpper();else if(b.dataset.v==='through')toggleSeeThrough();else openLevel(+b.dataset.v);
 });
 let pendingLevelDelete=null;
 function renderNiveles(){

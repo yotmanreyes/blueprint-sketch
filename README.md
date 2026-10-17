@@ -14,7 +14,7 @@ Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeli
   - *Build* selects, moves and draws.
   - *Sculpt* stretches walls, openings, floors and furniture with handles.
 - **Furnish and style.** A library of furniture and accessories, **your own 3D models** (import `.glb` files), five style presets, wall finishes per side (paint, microcement, brick, tile, wood slats) and floor finishes per room.
-- **Several levels and stairs.** Add storeys above the ground floor, switch between them from the header (or with `PageUp`/`PageDown`), see a faint footprint of the level below to draw over, and connect levels with stairs that open the floor above.
+- **Several levels and stairs.** Add storeys above the ground floor, switch between them from the header (or with `PageUp`/`PageDown`), see a faint footprint of the level below to draw over, look through the floors with *Ver entre plantas*, and connect levels with stairs that open the floor above.
 - **Type exact measurements.** Select anything and edit its numbers in the bar below: wall length and thickness, door and window size and position, room width and depth (the walls follow), furniture position, rotation and size.
 - **Undo and redo** every change with `Ctrl/Cmd+Z` and `Ctrl/Cmd+Shift+Z`.
 - **Turn things freely.** Rotate a piece with its handle, `Alt`/`Shift` + scroll, a trackpad twist (Safari) or `Shift` + arrow keys.
