@@ -77,6 +77,28 @@ const Layout=(()=>{
     return best;
   }
 
+  // resizes a floor and drags along the walls that run on its edges, so a drawn room stays closed
+  function resizeFloor(L,f,rect,wallHeight){
+    const EDGE=.01,r3=n=>+n.toFixed(3);
+    rect={x0:r3(rect.x0),x1:r3(rect.x1),z0:r3(rect.z0),z1:r3(rect.z1)};
+    const old={x0:f.x-f.w/2,x1:f.x+f.w/2,z0:f.z-f.d/2,z1:f.z+f.d/2},touched=new Set();
+    for(const w of L.walls){
+      const h=isH(w),[a,b]=span(w),c=fixed(w);
+      const lo=h?old.x0:old.z0,hi=h?old.x1:old.z1,edgeLo=h?old.z0:old.x0,edgeHi=h?old.z1:old.x1;
+      if(a<lo-EDGE||b>hi+EDGE)continue;
+      const onLo=Math.abs(c-edgeLo)<EDGE,onHi=Math.abs(c-edgeHi)<EDGE;
+      if(!onLo&&!onHi)continue;
+      const to=h?(onLo?rect.z0:rect.z1):(onLo?rect.x0:rect.x1);
+      if(h)w.z1=w.z2=to;else w.x1=w.x2=to;
+      const [k1,k2]=h?['x1','x2']:['z1','z2'];
+      if(Math.abs(a-lo)<EDGE)w[k1]=h?rect.x0:rect.z0;
+      if(Math.abs(b-hi)<EDGE)w[k2]=h?rect.x1:rect.z1;
+      touched.add(w);
+    }
+    Object.assign(f,{x:r3((rect.x0+rect.x1)/2),z:r3((rect.z0+rect.z1)/2),w:r3(rect.x1-rect.x0),d:r3(rect.z1-rect.z0)});
+    for(const w of touched)refitWallOpenings(L,w,wallHeight);
+  }
+
   const faceIds=L=>[...new Set(L.walls.flatMap(w=>[w.faces&&w.faces.lo,w.faces&&w.faces.hi]).filter(Boolean))];
 
   // sorted unique centerline coordinates of the perpendicular walls inside the frame, for dimension chains
@@ -115,5 +137,6 @@ const Layout=(()=>{
   }
 
   return{isH,axisOf,fixed,span,length,wallById,normalize,empty,isEmpty,frame,floorsBounds,innerBounds,endInfo,opsOf,overlaps,
-    fitOpening,refitWallOpenings,nearestWall,faceIds,splits,house};
+    fitOpening,refitWallOpenings,nearestWall,resizeFloor,faceIds,splits,house};
 })();
+if(typeof module!=='undefined')module.exports=Layout;
