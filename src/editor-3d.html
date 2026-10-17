@@ -298,6 +298,11 @@ const FLOORS={
     g.strokeStyle='rgba(40,25,15,.8)';g.lineWidth=3;for(let i=0;i<=6;i++){g.beginPath();g.moveTo(i*pw,0);g.lineTo(i*pw,n);g.stroke();const y=(i%3)*n/3+n/6;g.beginPath();g.moveTo(i*pw,y);g.lineTo((i+1)*pw,y);g.stroke();}}),rough:.55},
   terrazo:{n:'Terrazo 60×60',c:mkCanvas(1024,(g,n)=>{noise(g,n,'#dcd7cf',.05,6);const R=rnd(23);const cols=['#8a8378','#b65e3c','#5f6e66','#3d3b38','#c9b48f','#f7f5f0'];
     for(let i=0;i<2600;i++){g.fillStyle=cols[R()*cols.length|0];g.beginPath();const x=R()*n,y=R()*n,r=1.5+R()*6;g.moveTo(x+r,y);for(let a=1;a<6;a++)g.lineTo(x+Math.cos(a)*r*(.6+R()*.6),y+Math.sin(a)*r*(.6+R()*.6));g.fill();}grout(g,n,2,2,false,'rgba(120,115,108,.6)',2);}),rough:.35},
+  cesped:{n:'Césped',open:true,c:mkCanvas(1024,(g,n)=>{noise(g,n,'#4c7a3e',.25,31);const R=rnd(33);for(let i=0;i<5200;i++){g.strokeStyle=`rgba(${40+R()*40|0},${100+R()*70|0},${40+R()*30|0},.55)`;g.lineWidth=1.2;g.beginPath();const x=R()*n,y=R()*n;g.moveTo(x,y);g.lineTo(x+(R()-.5)*8,y-5-R()*10);g.stroke();}}),rough:1},
+  adoquin:{n:'Adoquín',open:true,c:mkCanvas(1024,(g,n)=>{noise(g,n,'#a39a8d',.16,32);grout(g,n,8,16,true,'rgba(70,65,60,.85)',3);}),rough:.9},
+  arena:{n:'Arena',open:true,c:mkCanvas(1024,(g,n)=>{noise(g,n,'#d9c79a',.2,35);}),rough:1},
+  agua:{n:'Agua',open:true,c:mkCanvas(1024,(g,n)=>{noise(g,n,'#3f86a8',.08,36);const R=rnd(38);for(let i=0;i<60;i++){g.strokeStyle=`rgba(255,255,255,${.05+R()*.1})`;g.lineWidth=2;g.beginPath();const y=R()*n,x=R()*n;g.moveTo(x,y);g.bezierCurveTo(x+40,y-8,x+80,y+8,x+120,y);g.stroke();}}),rough:.06},
+  pavimento:{n:'Pavimento',open:true,c:mkCanvas(1024,(g,n)=>{noise(g,n,'#5b5d60',.16,37);}),rough:.85},
   gris_claro:{n:'Gris claro 60×60',c:mkCanvas(1024,(g,n)=>{noise(g,n,'#c8c7c4',.06,9);grout(g,n,2,2,false,'rgba(120,120,120,.6)',2);}),rough:.4}
 };
 // acabados de pared (se tiñen con color)
@@ -389,11 +394,16 @@ const LIB={
   tv:{n:'Mueble TV + TV',w:1.6,d:.4,zone:'cuarto'}, sillon:{n:'Sillón',w:.85,d:.85,zone:'cuarto'}, tapete:{n:'Tapete',w:2.2,d:1.6,zone:'cuarto'},
   planta:{n:'Planta',w:.45,d:.45,zone:'cuarto'}, lampara:{n:'Lámpara de pie',w:.4,d:.4,zone:'cuarto'}, espejo:{n:'Espejo de cuerpo',w:.7,d:.04,elev:.3,zone:'cuarto'},
   banco:{n:'Banco',w:1.1,d:.4,zone:'pasillo'},
+  sofa:{n:'Sofá 3 puestos',w:2.1,d:.95,zone:''}, mesa:{n:'Mesa de comedor',w:1.6,d:.9,zone:''}, mesacafe:{n:'Mesa redonda',w:.8,d:.8,zone:''},
+  cocina:{n:'Mesón de cocina',w:1.8,d:.6,zone:''}, nevera:{n:'Nevera',w:.7,d:.7,zone:''}, barra:{n:'Barra',w:2.4,d:.6,zone:''},
+  arbol:{n:'Árbol',w:1.8,d:1.8,zone:''}, arbusto:{n:'Arbusto',w:.9,d:.9,zone:''}, farola:{n:'Farola',w:.3,d:.3,zone:''},
+  bancoparque:{n:'Banca de parque',w:1.7,d:.55,zone:''}, mesapicnic:{n:'Mesa de picnic',w:1.8,d:1.6,zone:''}, fuente:{n:'Fuente',w:2.4,d:2.4,zone:''},
   ducha:{n:'Ducha 1,20×0,90',w:1.2,d:.9,zone:'bano'}, sanitario:{n:'Sanitario',w:.4,d:.7,zone:'bano'}, lavamanos:{n:'Lavamanos flotante',w:.6,d:.45,zone:'bano'},
   repisabano:{n:'Repisa de baño',w:.6,d:.15,elev:1.2,zone:'bano'}
 };
 const LIBGROUPS=[['Guardado',['closet120','closet180','closet240','estante','repisa']],['Dormir y trabajar',['cama100','cama140','cama160','mesanoche','escritorio','silla']],
-  ['Estar y decoración',['tv','sillon','tapete','planta','lampara','espejo','banco']],['Baño',['ducha','sanitario','lavamanos','repisabano']]];
+  ['Estar y decoración',['tv','sofa','sillon','tapete','planta','lampara','espejo','banco']],['Cocina y comedor',['cocina','nevera','mesa','mesacafe','barra']],
+  ['Baño',['ducha','sanitario','lavamanos','repisabano']],['Exterior',['arbol','arbusto','farola','bancoparque','mesapicnic','fuente']]];
 const nextId=prefix=>prefix+(++state.n);
 
 function defaultState(){
@@ -554,7 +564,7 @@ function buildLevelInto(g,L,{live,arriving,raised}){
       const m=flatPiece(r,floorMat(FLOORS[f.f]?f.f:'marmol_blanco',r.x1-r.x0,r.z1-r.z0),0,true);m.receiveShadow=true;fg.add(m);
     }
     if(raised)for(const r of Layout.subtractRects(growRect(rect,.1),arriving))B(g,r.x0,r.x1,-Levels.SLAB,-.004,r.z0,r.z1,M.struct).userData.slab=true;
-    for(const r of Layout.subtractRects(growRect(rect,.15),cuts))ceilG.add(flatPiece(r,M.ceil,H-.002,false));
+    if(!(FLOORS[f.f]&&FLOORS[f.f].open))for(const r of Layout.subtractRects(growRect(rect,.15),cuts))ceilG.add(flatPiece(r,M.ceil,H-.002,false));
   }
   for(const w of shown('wall',L.walls)){
     const ax=Layout.axisOf(w),c=Layout.fixed(w),[s0,s1]=Layout.span(w),A=Layout.endInfo(L,w,'a'),Z=Layout.endInfo(L,w,'b'),ops=Layout.opsOf(L,w);
@@ -744,6 +754,24 @@ function buildItem(it){
     case'ducha':B(g,-hw,hw,0,.03,-hd,hd,M.tray);B(g,-hw,hw*.45,0,2.0,hd-.01,hd,M.glass,false);B(g,hw*.45,hw*.45+.02,0,2.0,hd-.015,hd+.005,M.metal);B(g,-hw,hw*.45+.02,1.99,2.01,hd-.015,hd+.005,M.metal);
       C(g,0,2.16,-.1,.15,.015,M.metal,32);C(g,0,2.28,-hd+.005,.01,.24,M.metal);B(g,-.01,.01,2.38,2.4,-hd,-.1,M.metal);B(g,-.06,.06,1.0,1.15,-hd,-hd+.06,M.metal);break;
     case'sanitario':{B(g,-.19,.19,.4,.8,-hd,-hd+.18,M.white);const bw=C(g,0,.2,.03,.17,.4,M.white,28);bw.scale.set(1,1,1.3);const st=C(g,0,.415,.04,.19,.03,M.white,28);st.scale.set(1,1,1.35);break;}
+    case'sofa':B(g,-hw,hw,.12,.42,-hd,hd,M.fabric);B(g,-hw,hw,.42,.88,-hd,-hd+.2,M.fabric);B(g,-hw,-hw+.14,.42,.66,-hd,hd,M.fabric);B(g,hw-.14,hw,.42,.66,-hd,hd,M.fabric);
+      for(const[x,z]of[[-hw+.08,-hd+.08],[hw-.08,-hd+.08],[-hw+.08,hd-.08],[hw-.08,hd-.08]])C(g,x,.06,z,.025,.12,M.metal,8);break;
+    case'mesa':B(g,-hw,hw,.72,.76,-hd,hd,M.wood);for(const[x,z]of[[-hw+.05,-hd+.05],[hw-.05,-hd+.05],[-hw+.05,hd-.05],[hw-.05,hd-.05]])B(g,x-.03,x+.03,0,.72,z-.03,z+.03,M.metal);break;
+    case'mesacafe':C(g,0,.73,0,hw,.04,M.wood,32);C(g,0,.36,0,.03,.72,M.metal,8);C(g,0,.01,0,.2,.02,M.metal,24);break;
+    case'cocina':B(g,-hw,hw,0,.88,-hd,hd,M.carcass);B(g,-hw-.01,hw+.01,.88,.92,-hd-.01,hd+.01,M.wood);
+      for(const[x,z]of[[-.55,-.12],[-.2,-.12],[-.55,.14],[-.2,.14]])C(g,x,.93,z,.07,.012,M.metal,16);B(g,.2,.7,.9,.915,-.2,.2,M.mirror);B(g,.43,.47,.92,1.08,-.18,-.14,M.metal);
+      for(let i=0;i<3;i++){const x0=-hw+.04+i*(w/3);B(g,x0,x0+w/3-.08,.1,.84,hd,hd+.012,M.wood);}break;
+    case'nevera':B(g,-hw,hw,0,1.8,-hd,hd,M.white);B(g,-hw,hw,1.14,1.16,hd,hd+.006,M.metal);B(g,hw-.1,hw-.07,.85,1.05,hd,hd+.03,M.metal);B(g,hw-.1,hw-.07,1.25,1.65,hd,hd+.03,M.metal);break;
+    case'barra':B(g,-hw,hw,0,1.02,-hd,hd,M.wood);B(g,-hw-.05,hw+.05,1.02,1.07,-hd-.05,hd+.08,M.carcass);B(g,-hw,hw,.08,.1,hd+.02,hd+.18,M.metal);break;
+    case'arbol':C(g,0,.9,0,.14,1.8,M.wood,10,.1);
+      for(const[x,y,z,r]of[[0,2.6,0,.95],[.55,2.25,.2,.65],[-.5,2.35,-.2,.7],[.1,3.2,-.1,.6]]){const m=new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),M.green);m.position.set(x,y,z);m.castShadow=true;g.add(m);}break;
+    case'arbusto':for(const[x,y,z,r]of[[0,.4,0,.42],[.3,.3,.15,.3],[-.28,.32,-.1,.32]]){const m=new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),M.green);m.position.set(x,y,z);m.castShadow=true;g.add(m);}break;
+    case'farola':C(g,0,.04,0,.12,.08,M.metal,12);C(g,0,1.9,0,.035,3.8,M.metal,8);B(g,-.03,.3,3.78,3.82,-.03,.03,M.metal);{const b=new THREE.Mesh(new THREE.SphereGeometry(.12,14,14),M.bulb);b.position.set(.3,3.7,0);g.add(b);}break;
+    case'bancoparque':B(g,-hw,hw,.42,.46,-hd+.1,hd,M.wood);B(g,-hw,hw,.6,.64,-hd,-hd+.05,M.wood);B(g,-hw,hw,.78,.82,-hd,-hd+.05,M.wood);
+      for(const x of[-hw+.12,hw-.12])B(g,x-.025,x+.025,0,.82,-hd,-hd+.05,M.metal),B(g,x-.025,x+.025,0,.42,hd-.08,hd-.03,M.metal);break;
+    case'mesapicnic':B(g,-hw+.1,hw-.1,.74,.78,-.4,.4,M.wood);B(g,-hw+.1,hw-.1,.42,.46,-.78,-.42,M.wood);B(g,-hw+.1,hw-.1,.42,.46,.42,.78,M.wood);
+      for(const x of[-hw+.35,hw-.35])B(g,x-.03,x+.03,0,.74,-.7,.7,M.metal);break;
+    case'fuente':C(g,0,.2,0,hw,.4,M.tray,48);C(g,0,.38,0,hw-.12,.03,M.glass,48);C(g,0,.7,0,.14,.6,M.tray,16);C(g,0,1.02,0,.4,.07,M.tray,32);C(g,0,1.08,0,.34,.02,M.glass,32);break;
     case'lavamanos':{B(g,-hw,hw,.55,.85,-hd,hd,M.wood);C(g,0,.92,.03,.17,.13,M.white,32);B(g,-.02,.02,.85,1.04,-hd+.03,-hd+.07,M.metal);B(g,-.015,.015,1.0,1.03,-hd+.05,-.05,M.metal);
       const mr=new THREE.Mesh(new THREE.CircleGeometry(.3,48),M.mirror);mr.position.set(0,1.55,-hd+.004);g.add(mr);const mf=new THREE.Mesh(new THREE.TorusGeometry(.31,.015,8,48),M.metal);mf.position.copy(mr.position);g.add(mf);break;}
   }
