@@ -74,8 +74,8 @@ src/
   plan-store.js    saved plans in the browser, import and export
   sharing.js       share links, autosave, live updates, conflicts
   icons.js         line icons for the furniture library
-api/               Vercel functions for shared plans (Upstash Redis)
-test/              API tests against a simulated Redis
+api/               Vercel functions for shared plans (Vercel Blob)
+test/              unit tests and API tests against an in-memory store
 ```
 
 ### The engine in a nutshell
@@ -118,11 +118,17 @@ Corners and T-junctions are resolved automatically, openings belong to a wall an
 
 ## Sharing and deployment
 
-Sharing is the only part that needs a server. It runs as Vercel functions in `api/`, storing plans in Upstash Redis.
+Sharing is the only part that needs a server. It runs as Vercel functions in `api/`, storing each plan as one JSON file in a **private Vercel Blob store**.
 
 1. Deploy the repository to Vercel (a static site plus the `api/` functions; no build command).
-2. Add the **Upstash for Redis** integration from the Vercel Marketplace. It provides `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (or the `KV_REST_API_*` equivalents).
+2. Create the store and connect it to the project: `vercel blob create-store <name> --access private`. This sets `BLOB_READ_WRITE_TOKEN`.
 3. Connect the GitHub repository so every push to `main` deploys.
+
+How it uses storage:
+
+- A plan is a single document that also holds its links (as hashes), so one conditional write (`ifMatch` on the etag) keeps state and links consistent. Two people saving at once cannot both win.
+- Reads skip the cache, so they always see the latest write.
+- Blob's free tier allows 2,000 writes and 10,000 reads a month. The client therefore batches saves (one every 4 seconds at most), checks for other people's changes every 45 seconds and when the tab returns, and flushes pending edits when the page is hidden.
 
 What an uploaded plan may contain is whitelisted and bounded server-side (`api/_lib/validate.js`), plan creation is rate limited per IP, and link tokens are random and stored only as hashes.
 
@@ -139,7 +145,7 @@ The suite covers:
 - undo and redo,
 - the drawing, the PDF structure (cross-reference table and content length) and the DXF (group pairs, millimetres, layers),
 - the quantities against hand-calculated figures,
-- the shared plans API against a simulated Upstash server: permissions per role, rejection of malformed or hostile plans, version conflicts, revoked and cross-plan links, and rate limits.
+- the shared plans API against an in-memory store with the same contract as Blob (etags, conditional and create-only writes): permissions per role, simultaneous saves, rejection of malformed or hostile plans, version conflicts, revoked and cross-plan links, and rate limits.
 
 GitHub Actions runs it on every push and pull request.
 

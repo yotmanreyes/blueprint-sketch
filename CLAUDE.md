@@ -36,7 +36,11 @@ Un plano se puede subir a la nube desde la pestaña **Planos** (botón *Comparti
 - Guardado automático con control de versiones: si alguien más guardó antes, el editor ofrece cargar la versión nueva o conservar la propia. Los demás clientes consultan cambios cada 8 s.
 - El estado que llega al servidor se reconstruye con una lista blanca (`api/_lib/validate.js`): ids, tipos, números y colores acotados; lo desconocido se descarta. Nunca renderizar texto de un plano compartido sin `esc()`.
 
-Piezas: `src/sharing.js` (cliente y sesión), `api/` (funciones de Vercel con Upstash Redis) y `test/api.test.mjs` (`npm test`, usa un Redis simulado). Variables de entorno: `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` (o `KV_REST_API_URL` y `KV_REST_API_TOKEN`), que pone la integración de Vercel.
+Piezas: `src/sharing.js` (cliente y sesión), `api/` (funciones de Vercel) y `test/api.test.mjs` (`npm test`).
+
+Almacenamiento: un almacén **Vercel Blob privado** (`blueprint-sketch-plans`); la variable `BLOB_READ_WRITE_TOKEN` la pone `vercel blob create-store`. Cada plano es un solo JSON `plans/<id>.json` que incluye sus enlaces (solo el hash de cada token), así una escritura condicional por etag (`ifMatch`) mantiene estado y enlaces consistentes. Las lecturas van con `useCache: false`. `api/_lib/storage.js` es el adaptador; las pruebas y el servidor local usan `test/memory-storage.mjs`, con el mismo contrato (etags, escritura condicional y solo-crear).
+
+Cuota gratuita de Blob: 2.000 escrituras y 10.000 lecturas al mes (al pasarse se bloquea 30 días, no cobra). Por eso el cliente guarda como máximo cada 4 s, consulta cambios cada 45 s y al volver a la pestaña, y envía lo pendiente al ocultarla (`keepalive`). No bajar esos tiempos sin revisar la cuota. Cada petición autenticada cuesta una lectura; crear un plano o un enlace, una lectura y una escritura más para el límite por IP.
 
 ## Modos del editor
 
