@@ -3,37 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// --- minimal Upstash REST fake (just the commands the API uses) ---
-const data = new Map(), sets = new Map();
-const cmds = {
-  GET: ([k]) => data.has(k) ? data.get(k) : null,
-  SET: ([k, v]) => { data.set(k, v); return 'OK'; },
-  DEL: ks => { let n = 0; for (const k of ks) { n += data.delete(k) + sets.delete(k); } return n; },
-  INCR: ([k]) => { const v = Number(data.get(k) || 0) + 1; data.set(k, String(v)); return v; },
-  EXPIRE: () => 1,
-  SADD: ([k, ...m]) => { const s = sets.get(k) || new Set(); m.forEach(x => s.add(x)); sets.set(k, s); return m.length; },
-  SREM: ([k, ...m]) => { const s = sets.get(k); m.forEach(x => s && s.delete(x)); return m.length; },
-  SMEMBERS: ([k]) => [...(sets.get(k) || [])],
-  SCARD: ([k]) => (sets.get(k) || new Set()).size,
-  EVAL: ([, , key, a, b]) => { if (String(data.get(key)) === a) { data.set(key, b); return 1; } return 0; }
-};
-const server = http.createServer((req, res) => {
-  let body = '';
-  req.on('data', c => body += c);
-  req.on('end', () => {
-    const b64 = req.headers['upstash-encoding'] === 'base64';
-    const enc = v => typeof v === 'string' && b64 ? Buffer.from(v).toString('base64') : Array.isArray(v) ? v.map(enc) : v;
-    const parsed = JSON.parse(body), pipeline = Array.isArray(parsed[0]);
-    const run = ([name, ...args]) => { const fn = cmds[String(name).toUpperCase()]; return fn ? { result: enc(fn(args.map(String))) } : { error: 'unknown ' + name }; };
-    res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify(pipeline ? parsed.map(run) : run(parsed)));
-  });
-});
-await new Promise(r => server.listen(0, '127.0.0.1', r));
-process.env.UPSTASH_REDIS_REST_URL = `http://127.0.0.1:${server.address().port}`;
-process.env.UPSTASH_REDIS_REST_TOKEN = 'test';
-
+import { memoryStorage } from './memory-storage.mjs';
 const ROOT = fileURLToPath(new URL('../api/', import.meta.url));
+const { useStorage } = await import(ROOT + '_lib/store.js');
+const storage = memoryStorage();
+useStorage(storage);
 const create = (await import(ROOT + 'plans/index.js')).default;
 const plan = (await import(ROOT + 'plans/[id]/index.js')).default;
 const links = (await import(ROOT + 'plans/[id]/links/index.js')).default;
@@ -160,6 +134,38 @@ let limited = 0;
 for (let i = 0; i < 25; i++) { const x = await call(create, { method: 'POST', body: { name: 'spam', state }, ip: '9.9.9.9' }); if (x.status === 429) limited++; }
 check('creation is rate limited per IP', () => assert.ok(limited >= 5));
 
+// concurrency and storage details
+{
+  const fresh = await call(create, { method: 'POST', body: { name: 'Carrera', state }, ip: '5.5.5.5' });
+  const fid = fresh.body.id, ftoken = fresh.body.token;
+  const ed = (await call(links, { method: 'POST', query: { id: fid }, token: ftoken, body: { role: 'editor', label: 'E' } })).body.token;
+  const [a, b] = await Promise.all([
+    call(plan, { method: 'PUT', query: { id: fid }, token: ftoken, body: { state, baseVersion: 1 } }),
+    call(plan, { method: 'PUT', query: { id: fid }, token: ed, body: { state, baseVersion: 1 } })
+  ]);
+  check('two saves from the same version: exactly one wins', () => assert.deepEqual([a.status, b.status].sort(), [200, 409]));
+  const now = await call(plan, { query: { id: fid }, token: ftoken });
+  check('and the plan moved one version, not two', () => assert.equal(now.body.version, 2));
+
+  const [save, mint] = await Promise.all([
+    call(plan, { method: 'PUT', query: { id: fid }, token: ftoken, body: { state, baseVersion: 2 } }),
+    call(links, { method: 'POST', query: { id: fid }, token: ftoken, body: { role: 'viewer', label: 'V' } })
+  ]);
+  check('saving while a link is created loses neither', () => { assert.equal(save.status, 200); assert.equal(mint.status, 201); });
+  const after = await call(links, { query: { id: fid }, token: ftoken });
+  check('the new link is still there after the save', () => assert.equal(after.body.links.length, 3));
+  const reads = storage.stats.reads;
+  r = await call(plan, { query: { id: '../../etc/passwd' }, token: ftoken });
+  const r2 = await call(plan, { query: { id: 'a/b' }, token: ftoken });
+  check('ids that try to leave the plans folder are not found and never reach storage', () => { assert.equal(r.status, 404); assert.equal(r2.status, 404); assert.equal(storage.stats.reads, reads); });
+  const doc = storage.files.get(`plans/${fid}.json`).text;
+  check('a plan is a single document that never contains a plain token', () => { assert.ok(doc.includes('"links"')); assert.ok(![ftoken, ed].some(t => doc.includes(t))); });
+  check('only hashes of the tokens are kept', () => assert.ok(JSON.parse(doc).links.every(l => /^[0-9a-f]{64}$/.test(l.hash))));
+  const before = storage.stats.reads;
+  await call(plan, { query: { id: fid }, token: ftoken });
+  check('opening a plan costs one read', () => assert.equal(storage.stats.reads - before, 1));
+}
+
 // method guard and delete
 r = await call(create, { method: 'GET' });
 check('wrong method is 405', () => assert.equal(r.status, 405));
@@ -171,4 +177,3 @@ r = await call(plan, { query: { id }, token: editor });
 check('and its links stop working', () => assert.equal(r.status, 404));
 
 console.log(`\n${ok} checks passed`);
-server.close();

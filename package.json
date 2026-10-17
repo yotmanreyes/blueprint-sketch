@@ -6,10 +6,10 @@
   "engines": {
     "node": "22.x"
   },
-  "dependencies": {
-    "@upstash/redis": "^1.34.0"
-  },
   "scripts": {
     "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.8.2"
   }
 }
