@@ -23,4 +23,13 @@ export function route(methods, handler) {
   };
 }
 
+// immutable, private to the signed-in link, and never sniffed into anything else
+export function sendBytes(res, bytes, type) {
+  res.status(200);
+  res.setHeader('Content-Type', type);
+  res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.send(bytes);
+}
+
 export const tooLarge = state => (JSON.stringify(state) || '').length > MAX_STATE_BYTES;

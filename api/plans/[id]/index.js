@@ -1,5 +1,5 @@
 import { cleanName, cleanState } from '../../_lib/validate.js';
-import { can, deletePlan, open, savePlan } from '../../_lib/store.js';
+import { can, deletePlan, listModels, open, savePlan } from '../../_lib/store.js';
 import { route, send, tooLarge } from '../../_lib/http.js';
 
 export default route(['GET', 'PUT', 'DELETE'], async (req, res) => {
@@ -10,7 +10,7 @@ export default route(['GET', 'PUT', 'DELETE'], async (req, res) => {
 
   if (req.method === 'GET') {
     if (Number(req.query.since) === plan.version) return send(res, 200, { unchanged: true, version: plan.version, role: link.role });
-    return send(res, 200, { id, name: plan.name, state: plan.state, version: plan.version, updated: plan.updated, role: link.role });
+    return send(res, 200, { id, name: plan.name, state: plan.state, version: plan.version, updated: plan.updated, role: link.role, models: listModels(plan) });
   }
 
   if (req.method === 'PUT') {
@@ -24,6 +24,6 @@ export default route(['GET', 'PUT', 'DELETE'], async (req, res) => {
   }
 
   if (!can(link.role, 'delete')) return send(res, 403, { error: 'forbidden' });
-  await deletePlan(id);
+  await deletePlan(plan);
   send(res, 200, { deleted: true });
 });

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { memoryStorage } from './memory-storage.mjs';
+import { makeGlb } from './glb.mjs';
 const ROOT = fileURLToPath(new URL('../api/', import.meta.url));
 const { useStorage } = await import(ROOT + '_lib/store.js');
 const storage = memoryStorage();
@@ -12,13 +13,15 @@ const create = (await import(ROOT + 'plans/index.js')).default;
 const plan = (await import(ROOT + 'plans/[id]/index.js')).default;
 const links = (await import(ROOT + 'plans/[id]/links/index.js')).default;
 const link = (await import(ROOT + 'plans/[id]/links/[lid].js')).default;
+const model = (await import(ROOT + 'plans/[id]/models/[mid].js')).default;
 
 const call = async (handler, { method = 'GET', query = {}, token, body, ip = '1.1.1.1' } = {}) => {
   const req = { method, query, body, headers: { authorization: token ? 'Bearer ' + token : undefined, 'x-forwarded-for': ip } };
   let status = 0, payload;
-  const res = { status(s) { status = s; return res; }, setHeader() { return res; }, json(p) { payload = p; return res; } };
+  const headers = {};
+  const res = { status(s) { status = s; return res; }, setHeader(k, v) { headers[k.toLowerCase()] = v; return res; }, json(p) { payload = p; return res; }, send(b) { payload = b; return res; } };
   await handler(req, res);
-  return { status, body: payload };
+  return { status, body: payload, headers };
 };
 
 // a realistic plan: the original house template with a few pieces, one of them freely rotated and scaled
@@ -182,6 +185,63 @@ check('creation is rate limited per IP', () => assert.ok(limited >= 5));
     assert.equal(strongEtag('W/"abc123"'), '"abc123"');
     assert.equal(strongEtag('"abc123"'), '"abc123"');
   });
+}
+
+// 3D model files that travel with a plan
+{
+  const owned = await call(create, { method: 'POST', body: { name: 'Con modelos', state }, ip: '6.6.6.6' });
+  const mid = owned.body.id, mtoken = owned.body.token;
+  const mviewer = (await call(links, { method: 'POST', query: { id: mid }, token: mtoken, body: { role: 'viewer', label: 'V' } })).body.token;
+  const meditor = (await call(links, { method: 'POST', query: { id: mid }, token: mtoken, body: { role: 'editor', label: 'E' } })).body.token;
+  const glb = Buffer.from(makeGlb({ w: 2, d: 1, h: 1 }));
+  const put = (t, bytes, id = 'm_a1b2c3d4e5f6', plan = mid) => call(model, { method: 'PUT', query: { id: plan, mid: id }, token: t, body: bytes });
+  const getModel = (t, id = 'm_a1b2c3d4e5f6', plan = mid) => call(model, { query: { id: plan, mid: id }, token: t });
+
+  let r = await put(mtoken, glb);
+  check('an editor or owner uploads a model', () => assert.equal(r.status, 200));
+  r = await getModel(mviewer);
+  check('a reader downloads exactly the same bytes, as an immutable private file', () => {
+    assert.equal(r.status, 200);
+    assert.ok(Buffer.compare(r.body, glb) === 0);
+    assert.equal(r.headers['content-type'], 'model/gltf-binary');
+    assert.match(r.headers['cache-control'], /private.*immutable/);
+    assert.equal(r.headers['x-content-type-options'], 'nosniff');
+  });
+  r = await call(plan, { query: { id: mid }, token: mviewer });
+  check('the plan lists which models have a file', () => assert.deepEqual(r.body.models, ['m_a1b2c3d4e5f6']));
+  r = await put(mviewer, glb, 'm_b1b2c3d4e5f6');
+  check('a reader cannot upload', () => assert.equal(r.status, 403));
+  r = await put(meditor, glb);
+  check('uploading the same model again is harmless', () => assert.equal(r.status, 200));
+  r = await getModel(mtoken, 'm_zzzzzzzzzzzz');
+  check('a model that was never uploaded is not found', () => assert.equal(r.status, 404));
+  r = await getModel(undefined);
+  check('no token, no model', () => assert.equal(r.status, 404));
+  r = await getModel(mtoken, 'm_a1b2c3d4e5f6', other.body.id);
+  check('a token never reads another plan\'s models', () => assert.equal(r.status, 404));
+
+  const hostile = (label, bytes) => async () => { const x = await put(mtoken, bytes, 'm_c1b2c3d4e5f6'); check('rejects ' + label, () => assert.ok([400, 413, 415].includes(x.status), String(x.status))); };
+  await hostile('a file that is not a glb', Buffer.from('hello world, this is not a model'))();
+  await hostile('a glb with a wrong declared length', (() => { const b = Buffer.from(glb); b.writeUInt32LE(b.length + 4, 8); return b; })())();
+  await hostile('a glb that points at an outside address', Buffer.from(makeGlb({ extraUri: 'http://example.com/leak.png' })))();
+  await hostile('a glb that points at a local file', Buffer.from(makeGlb({ extraUri: '../../secret.png' })))();
+  await hostile('a file over 4 MB', Buffer.alloc(4_000_001))();
+  await hostile('a json body instead of a file', { not: 'a file' })();
+  const stored = await getModel(mtoken, 'm_c1b2c3d4e5f6');
+  check('and none of those was stored', () => assert.equal(stored.status, 404));
+  r = await put(mtoken, Buffer.from(makeGlb({ extraUri: 'data:image/png;base64,iVBORw0KGgo=' })), 'm_d1b2c3d4e5f6');
+  check('embedded data is allowed', () => assert.equal(r.status, 200));
+  r = await put(mtoken, glb, '../../x');
+  check('a model id that is a path is not found', () => assert.equal(r.status, 404));
+
+  const heavy = await call(create, { method: 'POST', body: { name: 'Pesado', state }, ip: '7.7.7.7' });
+  let cap = 0;
+  for (let i = 0; i < 42; i++) { const x = await put(heavy.body.token, glb, 'm_cap' + String(i).padStart(8, '0'), heavy.body.id); if (x.status === 409) cap++; }
+  check('a plan cannot hold more than 40 model files', () => assert.equal(cap, 2));
+
+  r = await call(plan, { method: 'DELETE', query: { id: mid }, token: mtoken });
+  const leftovers = [...storage.files.keys()].filter(k => k.startsWith(`plans/${mid}`));
+  check('deleting the plan deletes its model files too', () => { assert.equal(r.status, 200); assert.deepEqual(leftovers, []); });
 }
 
 // method guard and delete

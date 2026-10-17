@@ -10,6 +10,7 @@ const PERMISSIONS = {
 export const can = (role, action) => !!PERMISSIONS[role] && PERMISSIONS[role].has(action);
 
 const MAX_LINKS_PER_PLAN = 50, WRITE_RETRIES = 3, PLAN_ID = /^[A-Za-z0-9_-]{1,40}$/;
+export const MAX_MODEL_FILES = 40, MAX_MODEL_TOTAL_BYTES = 40_000_000;
 
 let storage = blobStorage;
 // the tests and the local server swap in an in-memory adapter
@@ -135,4 +136,31 @@ export const revokeLink = (id, lid) => update(id, plan => {
   return { ok: true };
 });
 
-export const deletePlan = id => storage.remove(planPath(id));
+const modelPath = (id, mid) => `plans/${id}/models/${mid}.glb`;
+export const listModels = plan => Object.keys(plan.modelFiles || {});
+
+// the file is written first and registered after, so a registered model always has its file
+export async function saveModel(opened, mid, bytes) {
+  const files = opened.plan.modelFiles || {};
+  if (!files[mid]) {
+    if (Object.keys(files).length >= MAX_MODEL_FILES) return { tooMany: true };
+    if (Object.values(files).reduce((sum, f) => sum + f.bytes, 0) + bytes.length > MAX_MODEL_TOTAL_BYTES) return { tooBig: true };
+  }
+  try {
+    await storage.writeBytes(modelPath(opened.plan.id, mid), bytes, { contentType: 'model/gltf-binary' });
+  } catch (e) {
+    if (!(e instanceof Conflict)) throw e;            // uploading the same model again is harmless
+  }
+  const result = await update(opened.plan.id, plan => {
+    plan.modelFiles = plan.modelFiles || {};
+    if (!plan.modelFiles[mid]) plan.modelFiles[mid] = { bytes: bytes.length, uploaded: Date.now() };
+    return { ok: true };
+  });
+  return result;
+}
+export const readModel = (plan, mid) => plan.modelFiles && plan.modelFiles[mid] ? storage.readBytes(modelPath(plan.id, mid)) : null;
+
+export async function deletePlan(plan) {
+  for (const mid of listModels(plan)) await storage.remove(modelPath(plan.id, mid));
+  await storage.remove(planPath(plan.id));
+}

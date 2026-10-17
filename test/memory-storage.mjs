@@ -23,6 +23,16 @@ export function memoryStorage() {
       files.set(path, { text, etag });
       return { etag };
     },
+    async readBytes(path) {
+      stats.reads++;
+      const f = files.get(path);
+      return f ? Buffer.from(f.bytes) : null;
+    },
+    async writeBytes(path, bytes) {
+      stats.writes++;
+      if (files.has(path)) throw new Conflict();
+      files.set(path, { bytes: Buffer.from(bytes), etag: `"${++counter}"` });
+    },
     async remove(path) {
       files.delete(path);
     }

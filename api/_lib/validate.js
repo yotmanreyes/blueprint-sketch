@@ -106,5 +106,19 @@ export function cleanState(s){
     }
   };
 }
+// A shared model must be a well-formed, self-contained .glb: nothing may point outside the file.
+export const MAX_GLB_BYTES=4_000_000;
+export const MODEL_ID_PATTERN=MODEL_ID;
+export function checkGlb(bytes){
+  if(!(bytes instanceof Uint8Array)||bytes.length<20||bytes.length>MAX_GLB_BYTES)fail('glb size');
+  const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+  if(view.getUint32(0,true)!==0x46546c67||view.getUint32(4,true)!==2||view.getUint32(8,true)!==bytes.length)fail('glb header');
+  const jsonLength=view.getUint32(12,true);
+  if(view.getUint32(16,true)!==0x4e4f534a||20+jsonLength>bytes.length)fail('glb json chunk');
+  let json;
+  try{json=JSON.parse(new TextDecoder().decode(bytes.subarray(20,20+jsonLength)));}catch(e){fail('glb json');}
+  for(const list of[json.buffers,json.images])
+    for(const entry of list||[])if(entry&&entry.uri!==undefined&&!/^data:/.test(String(entry.uri)))fail('glb external reference');
+}
 export const cleanName=n=>{if(typeof n!=='string')fail('name');const t=n.trim().slice(0,60);if(!t)fail('name');return t;};
 export const isInvalid=e=>e instanceof Invalid;

@@ -28,6 +28,20 @@ export const blobStorage = {
       throw e;
     }
   },
+  // binary files (3D models): written once, never overwritten, so reads may use the cache
+  async readBytes(path) {
+    const result = await get(path, { access: 'private' });
+    if (!result || result.statusCode !== 200) return null;
+    return Buffer.from(await new Response(result.stream).arrayBuffer());
+  },
+  async writeBytes(path, bytes, { contentType = 'application/octet-stream' } = {}) {
+    try {
+      await put(path, bytes, { access: 'private', contentType, addRandomSuffix: false, allowOverwrite: false });
+    } catch (e) {
+      if (alreadyExists(e)) throw new Conflict();
+      throw e;
+    }
+  },
   async remove(path) {
     await del(path);
   }

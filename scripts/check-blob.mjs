@@ -40,6 +40,16 @@ try {
     await blobStorage.remove(file);
     step(`${label}: removed files read as null`, (await blobStorage.read(file)) === null);
   }
+
+  // model files are binary: they must come back byte for byte and be written only once
+  const bytes = Buffer.from(Array.from({ length: 5000 }, (_, i) => (i * 37) % 256));
+  const file = `${path}.glb`;
+  await blobStorage.writeBytes(file, bytes, { contentType: 'model/gltf-binary' });
+  const back = await blobStorage.readBytes(file);
+  step('binary: bytes come back identical', back && Buffer.compare(back, bytes) === 0);
+  step('binary: writing the same path again is a conflict', await conflicts(() => blobStorage.writeBytes(file, bytes)));
+  await blobStorage.remove(file);
+  step('binary: removed files read as null', (await blobStorage.readBytes(file)) === null);
 } catch (e) {
   console.log('ERROR', e.constructor.name, String(e.message).slice(0, 200));
   failed = true;
