@@ -88,6 +88,11 @@ Los pisos no se mueven arrastrándolos (así se puede girar la cámara sobre ell
 - El modal (`#templates`) se abre al empezar un plano nuevo sin tocar (una vez por plano, guardado en `localStorage`), con *Plantillas* de la barra superior, *Nuevo plano…* de la pestaña Planos y *Ver plantillas* del plano vacío. Sobre un plano sin tocar reemplaza su contenido; si no, crea otro plano.
 - Pisos de exterior (`open: true`: césped, adoquín, arena, agua, pavimento) no llevan cielo.
 
+## Aspecto fotorrealista
+
+- La barra inferior alterna *Plano* y *Fotorrealista* (`setLook`, preferencia en `localStorage`, no va en el plano). `applyLook` cambia, sin tocar los datos: fondo y entorno (un cielo generado con `PMREMGenerator`, uno brillante para el fondo y otro a la mitad para iluminar), niebla, luz del sol (cálida, 4096 px, más alta en `aimSun`), exposición, `near`/`far` de la cámara, el color de `M.struct` (yeso en vez de gris de plano), un suelo grande, y oculta rejilla, cotas y aristas.
+- Sin postprocesado (no SSAO): el render sigue siendo directo, para conservar el tone mapping y la sombra a demanda. *Guardar imagen* renderiza y descarga el lienzo.
+
 ## Capas
 
 - `layout.layers = [{id, name, color, visible, locked}]`, por nivel (viajan con el nivel al cambiar). Hay seis capas base (`l_walls`, `l_openings`, `l_floors`, `l_stairs`, `l_items`, `l_dims`) que `Layout.ensureLayers` garantiza; las propias usan ids `c<n>`.

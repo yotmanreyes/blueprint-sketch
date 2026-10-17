@@ -282,6 +282,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
   <footer class="status">
     <div class="group"><span>Nivel</span><div class="seg" id="levels" role="group" aria-label="Nivel"></div></div>
     <div class="group"><span>Vista</span><div class="seg" id="cam"></div></div>
+    <div class="group"><span>Aspecto</span><div class="seg" id="look" role="group" aria-label="Aspecto visual"><button data-v="draft" aria-pressed="true">Plano</button><button data-v="photo" aria-pressed="false">Fotorrealista</button></div><button class="btn" id="shotBtn" title="Guardar la vista como imagen PNG">Guardar imagen</button></div>
     <p class="hint" id="hint"></p>
   </footer>
 </div>
@@ -392,7 +393,7 @@ function finishMat(spec,len,h){
 }
 const floorCache=new Map();
 function floorMat(k,sx,sz){const key=k+sx+'x'+sz;if(floorCache.has(key))return floorCache.get(key);
-  const F=FLOORS[k];const m=new THREE.MeshStandardMaterial({map:texFrom(F.c,sx/1.2,sz/1.2),roughness:F.rough});floorCache.set(key,m);return m;}
+  const F=FLOORS[k],map=texFrom(F.c,sx/1.2,sz/1.2);const m=new THREE.MeshStandardMaterial({map,bumpMap:map,bumpScale:.6,roughness:F.rough});floorCache.set(key,m);return m;}
 
 /* ================= estado ================= */
 const WALLS=[
@@ -503,7 +504,7 @@ const scene=new THREE.Scene();scene.background=new THREE.Color(0x0b1620);
 const camera=new THREE.PerspectiveCamera(70,1,.05,60);
 const controls=new THREE.OrbitControls(camera,renderer.domElement);
 controls.enableDamping=true;controls.addEventListener('change',()=>need=true);
-scene.add(new THREE.HemisphereLight(0xfff1df,0x3a3836,.45));
+const hemi=new THREE.HemisphereLight(0xfff1df,0x3a3836,.45);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xdfeaff,1.3);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
 Object.assign(sun.shadow.camera,{left:-7,right:7,top:7,bottom:-7,near:.5,far:22});sun.shadow.bias=-.0005;scene.add(sun,sun.target);
 
@@ -554,8 +555,9 @@ function addSky(g){
 }
 function aimSun(){
   const F=Layout.frame(state.layout)||{x0:0,x1:6,z0:0,z1:6},cx=(F.x0+F.x1)/2,cz=(F.z0+F.z1)/2,r=Math.max(F.x1-F.x0,F.z1-F.z0)/2+4;
-  sun.position.set(F.x0-6,4.2,cz+.3);sun.target.position.set(cx,0,cz);
-  Object.assign(sun.shadow.camera,{left:-r,right:r,top:r,bottom:-r,far:r*3});sun.shadow.camera.updateProjectionMatrix();
+  if(photoreal)sun.position.set(cx-.7*r*2.6,.62*r*2.6,cz+.32*r*2.6);else sun.position.set(F.x0-6,4.2,cz+.3);
+  sun.target.position.set(cx,0,cz);
+  Object.assign(sun.shadow.camera,{left:-r,right:r,top:r,bottom:-r,far:r*5});sun.shadow.camera.updateProjectionMatrix();
 }
 function addPendant(g,x,z,drop){
   C(g,x,H-drop/2,z,.006,drop,M.metal,6);
@@ -677,14 +679,15 @@ function buildGrid(){
     for(let z=GRID.z[0];z<=GRID.z[1]+1e-6;z+=GRID.step)if((Math.abs(z/GRID.major-Math.round(z/GRID.major))<1e-6)===isMajor)p.push(GRID.x[0],0,z,GRID.x[1],0,z);
     const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
     const l=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:0x6fa8dc,transparent:true,opacity,toneMapped:false}));l.position.y=-.004;return l;};
-  scene.add(lines(false,.1),lines(true,.28));
+  mainGrid=new THREE.Group();mainGrid.add(lines(false,.1),lines(true,.28));scene.add(mainGrid);
   groundGrid=new THREE.Group();groundGrid.add(lines(false,.05),lines(true,.14));scene.add(groundGrid);
 }
 // from the second level up, a fainter grid stays on the ground floor as a fixed reference
-let groundGrid=null;
+let groundGrid=null,mainGrid=null;
 function placeGroundGrid(){
   if(!groundGrid)return;
-  groundGrid.visible=state.level>0;groundGrid.position.y=Levels.offset(0,state.level);need=true;
+  groundGrid.visible=state.level>0&&!photoreal;groundGrid.position.y=Levels.offset(0,state.level);
+  groundPlane.position.y=Levels.offset(0,state.level)-.02;need=true;
 }
 
 function addEdges(g){
@@ -1263,6 +1266,59 @@ addEventListener('keydown',e=>{
   if(e.key==='PageUp'||e.key==='PageDown'){e.preventDefault();openLevel(state.level+(e.key==='PageUp'?1:-1));}
 });
 
+/* ================= aspecto: plano o fotorrealista ================= */
+// the realistic look lights the scene with a sky (reflections and ambient light), warm sun, soft fog and plaster walls
+let photoreal=false,skyTextures=null;
+const groundPlane=new THREE.Mesh(new THREE.PlaneGeometry(600,600),new THREE.MeshStandardMaterial({map:texFrom(mkCanvas(512,(g,n)=>noise(g,n,'#7b7e79',.14,41)),240,240),roughness:1}));
+groundPlane.rotation.x=-Math.PI/2;groundPlane.receiveShadow=true;groundPlane.visible=false;scene.add(groundPlane);
+function skyScene(strength){
+  const sky=new THREE.Scene(),geo=new THREE.SphereGeometry(400,48,24),pos=geo.attributes.position,colors=[];
+  const horizon=lin('#dbe5ee'),zenith=lin('#5d90d0'),ground=lin('#76786f'),c=new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const t=pos.getY(i)/400;
+    if(t>=0)c.copy(horizon).lerp(zenith,Math.pow(t,.55));else c.copy(horizon).lerp(ground,Math.min(1,-t*4));
+    colors.push(c.r*strength,c.g*strength,c.b*strength);
+  }
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+  sky.add(new THREE.Mesh(geo,new THREE.MeshBasicMaterial({side:THREE.BackSide,vertexColors:true})));
+  const sunDisc=new THREE.Mesh(new THREE.SphereGeometry(26,16,8),new THREE.MeshBasicMaterial({color:new THREE.Color(7*strength,6.2*strength,5*strength)}));
+  sunDisc.position.set(-260,230,120);sky.add(sunDisc);
+  return sky;
+}
+function buildSky(){
+  const generator=new THREE.PMREMGenerator(renderer);
+  const background=generator.fromScene(skyScene(1),0,.1,1000),environment=generator.fromScene(skyScene(.5),0,.1,1000);
+  generator.dispose();
+  return{background:background.texture,environment:environment.texture};
+}
+function applyLook(){
+  if(photoreal&&!skyTextures)skyTextures=buildSky();
+  scene.background=photoreal?skyTextures.background:new THREE.Color(0x0b1620);
+  scene.environment=photoreal?skyTextures.environment:null;
+  scene.fog=photoreal?new THREE.Fog(0xcdd9e3,70,150):null;
+  renderer.toneMappingExposure=photoreal?1.05:1.15;
+  hemi.intensity=photoreal?.15:.45;
+  sun.color.set(photoreal?0xfff0dc:0xdfeaff);sun.intensity=photoreal?2.4:1.3;
+  const size=photoreal?4096:2048;
+  if(sun.shadow.mapSize.x!==size){sun.shadow.mapSize.set(size,size);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
+  camera.near=photoreal?.1:.05;camera.far=photoreal?150:60;camera.updateProjectionMatrix();
+  M.struct.color.copy(lin(photoreal?'#d8d4cc':'#3a3c3f'));M.struct.roughness=photoreal?.9:1;
+  edgeMat.visible=!photoreal;
+  if(mainGrid)mainGrid.visible=!photoreal;
+  groundPlane.visible=photoreal;aimSun();placeGroundGrid();topHide();
+  $('look').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===(photoreal?'photo':'draft')));
+  need=true;
+}
+function setLook(look){
+  photoreal=look==='photo';applyLook();
+  try{localStorage.setItem('blueprint-sketch-look',look);}catch(e){}
+}
+$('look').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setLook(b.dataset.v);});
+$('shotBtn').onclick=()=>{
+  engine.update();renderer.render(scene,camera);
+  renderer.domElement.toBlob(blob=>{if(blob)download(blob,slug(currentPlanName())+'.png','image/png');},'image/png');
+};
+
 /* ================= cámaras ================= */
 const HOUSE_CAMS={entrada:{p:[3.15,1.55,7.75],t:[1.4,1.1,4.6]},cuarto2:{p:[.45,1.55,7.6],t:[3.2,1.1,4.1]},pasillo:{p:[3.45,1.5,3.85],t:[3.2,1.1,0]},
   bano:{p:[2.55,1.6,3.75],t:[.6,1.0,.8]}};
@@ -1309,7 +1365,7 @@ $('viewMenu').addEventListener('click',e=>{const b=e.target.closest('button[data
 addEventListener('pointerdown',e=>{if(!$('viewMenu').hidden&&!e.target.closest('#viewMenu,#cam'))closeViewMenu();});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('viewMenu').hidden)closeViewMenu();});
 function topHide(){
-  for(const root of[structG,othersG])root.traverse(o=>{if(o.userData.top)o.visible=!isOverview();if(o.userData.plan)o.visible=camKey==='planta';});
+  for(const root of[structG,othersG])root.traverse(o=>{if(o.userData.top)o.visible=!isOverview();if(o.userData.plan)o.visible=camKey==='planta'&&!photoreal;});
 }
 function viewFrame(){
   const F=Layout.frame(state.layout)||Levels.frame(state);
@@ -2059,7 +2115,8 @@ function renderShared(){
 /* ================= arranque ================= */
 function resize(){const r=view.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();need=true;}
 new ResizeObserver(resize).observe(view);
-applyMetalWood();buildGrid();buildStruct();buildItems();renderLevels();renderStyle();renderPlanTitle();resize();setCam('planta');syncModeUI();renderEmpty();
+applyMetalWood();buildGrid();buildStruct();buildItems();renderLevels();renderStyle();
+try{if(localStorage.getItem('blueprint-sketch-look')==='photo')setLook('photo');}catch(e){}renderPlanTitle();resize();setCam('planta');syncModeUI();renderEmpty();
 if(REMOTE_ID)bootRemote(REMOTE_ID);
 else if(isPristine(state)&&!templateSeen(plans.active.id))openTemplates('replace');
 else if(startup.created&&plans.list().length>1)showToast('Plano nuevo. Tus planos anteriores están en la pestaña Planos.');
