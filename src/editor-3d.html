@@ -156,6 +156,16 @@ aside .pane:not(:last-child){flex:1}
 .readonly #tools{display:none!important}
 .readonly #levels .edit,.readonly #undoBtn,.readonly #redoBtn,.readonly aside .pane:last-child,.readonly #modes button:not([data-v="navigate"]),.readonly #tools,.readonly #tabs button:not([data-t="planos"]):not([data-t="cantidades"]),.readonly #selbar,.readonly #empty{display:none!important}
 #levels button.edit{border-style:dashed}
+.lyrow{display:grid;grid-template-columns:auto auto 28px 1fr auto auto;gap:6px;align-items:center}
+.lyrow button.tg{width:32px;height:32px;padding:0;display:grid;place-items:center;border:1px solid var(--line);background:var(--panel2);border-radius:8px;cursor:pointer;color:var(--muted)}
+.lyrow button.tg svg{width:18px;height:18px}
+.lyrow button.tg[aria-pressed="true"]{color:var(--ink);border-color:var(--muted)}
+.lyrow button.tg.lock[aria-pressed="true"]{color:#1a1209;background:var(--accent);border-color:var(--accent)}
+.lyrow input[type=color]{width:28px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer}
+.lyrow input[type=text]{padding:5px 7px}
+.lyrow small{font-family:var(--mono);color:var(--muted);font-size:.68rem;min-width:18px;text-align:right}
+.lyrow.off input[type=text]{opacity:.45}
+.fld select{width:130px;font-size:.75rem;padding:3px 5px}
 .lvrow{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}
 .lvrow.on input{border-color:var(--accent)}
 .linkrow{display:grid;grid-template-columns:1fr auto;gap:4px 8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:3px}
@@ -222,6 +232,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
       <button role="tab" data-t="pisos" aria-selected="false">Pisos</button>
       <button role="tab" data-t="vanos" aria-selected="false">Vanos</button>
       <button role="tab" data-t="niveles" aria-selected="false">Niveles</button>
+      <button role="tab" data-t="capas" aria-selected="false">Capas</button>
       <button role="tab" data-t="cantidades" aria-selected="false">Cantidades</button>
       <button role="tab" data-t="planos" aria-selected="false">Planos</button>
     </div>
@@ -231,6 +242,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
     <div class="pane" id="p-pisos" hidden></div>
     <div class="pane" id="p-vanos" hidden></div>
     <div class="pane" id="p-niveles" hidden></div>
+    <div class="pane" id="p-capas" hidden></div>
     <div class="pane" id="p-cantidades" hidden></div>
     <div class="pane" id="p-planos" hidden></div>
     <div class="pane" style="border-top:1px solid var(--line);max-height:none">
@@ -535,7 +547,8 @@ function buildLevelInto(g,L,{live,arriving,raised}){
   const tag=(o,kind,id)=>live?engine.tag(o,kind,id):o;
   const ceilG=new THREE.Group();g.add(ceilG);
   const cuts=L.stairs.map(Layout.stairRect);
-  for(const f of L.floors){
+  const shown=(kind,list)=>list.filter(rec=>Layout.isVisible(L,kind,rec));
+  for(const f of shown('floor',L.floors)){
     const rect={x0:f.x-f.w/2,x1:f.x+f.w/2,z0:f.z-f.d/2,z1:f.z+f.d/2},fg=tag(new THREE.Group(),'floor',f.id);g.add(fg);
     for(const r of Layout.subtractRects(rect,arriving)){
       const m=flatPiece(r,floorMat(FLOORS[f.f]?f.f:'marmol_blanco',r.x1-r.x0,r.z1-r.z0),0,true);m.receiveShadow=true;fg.add(m);
@@ -543,7 +556,7 @@ function buildLevelInto(g,L,{live,arriving,raised}){
     if(raised)for(const r of Layout.subtractRects(growRect(rect,.1),arriving))B(g,r.x0,r.x1,-Levels.SLAB,-.004,r.z0,r.z1,M.struct).userData.slab=true;
     for(const r of Layout.subtractRects(growRect(rect,.15),cuts))ceilG.add(flatPiece(r,M.ceil,H-.002,false));
   }
-  for(const w of L.walls){
+  for(const w of shown('wall',L.walls)){
     const ax=Layout.axisOf(w),c=Layout.fixed(w),[s0,s1]=Layout.span(w),A=Layout.endInfo(L,w,'a'),Z=Layout.endInfo(L,w,'b'),ops=Layout.opsOf(L,w);
     const grp=tag(new THREE.Group(),'wall',w.id);g.add(grp);
     run(grp,ax,c,w.t,s0-A.ext,s1+Z.ext,ops,()=>M.struct);
@@ -555,11 +568,11 @@ function buildLevelInto(g,L,{live,arriving,raised}){
       if(live&&tab==='paredes'&&id===selWall)for(const p of ps){const o=new THREE.Mesh(p.geometry.clone(),M.hl);o.position.copy(p.position);o.renderOrder=2;grp.add(o);}
     }
   }
-  for(const o of L.openings){
+  for(const o of shown('opening',L.openings)){
     const w=Layout.wallById(L,o.wall);if(!w)continue;
     const og=tag(new THREE.Group(),'opening',o.id);g.add(og);buildOpening(og,o,w);
   }
-  for(const s of L.stairs)g.add(tag(buildStair(s),'stair',s.id));
+  for(const s of shown('stair',L.stairs))g.add(tag(buildStair(s),'stair',s.id));
   return ceilG;
 }
 
@@ -603,7 +616,7 @@ function buildOthers(force=false){
     buildLevelInto(g,lv.layout,{live:false,arriving:stairwells(lv.index),raised:lv.index>0}).userData.top=true;
     addEdges(g);
     const furniture=new THREE.Group();g.add(furniture);
-    for(const it of lv.items)if(LIB[it.t])furniture.add(buildItem(it));
+    for(const it of lv.items)if(LIB[it.t]&&Layout.isVisible(lv.layout,'item',it))furniture.add(buildItem(it));
     const lights=[];furniture.traverse(o=>{if(o.isLight)lights.push(o);});lights.forEach(l=>l.parent.remove(l));
     if(seeThrough)makeSeeThrough(g);
   }
@@ -665,14 +678,14 @@ function addGhost(P){
 }
 const CLIMB_ARROWS=['↓','→','↑','←'];
 function addStairLabels(P){
-  for(const s of state.layout.stairs)P.add(labelMesh(`${CLIMB_ARROWS[s.r]} SUBE`,s.x,s.z,.28,ROOM_INK,Levels.PITCH+.06));
+  for(const s of state.layout.stairs.filter(s=>Layout.isVisible(state.layout,'stair',s)))P.add(labelMesh(`${CLIMB_ARROWS[s.r]} SUBE`,s.x,s.z,.28,ROOM_INK,Levels.PITCH+.06));
   for(const s of Levels.arriving(state,state.level))P.add(labelMesh(`${CLIMB_ARROWS[(s.r+2)%4]} BAJA`,s.x,s.z,.28,ROOM_INK,.03));
 }
 function addPlanOverlay(g){
   const L=state.layout,F=Layout.frame(L),P=new THREE.Group();
   P.userData.plan=true;g.add(P);
   addGhost(P);addStairLabels(P);
-  if(!F)return;
+  if(!F||!Layout.dimsVisible(L))return;
   const chain=(ax,at,pts)=>{for(let i=0;i<pts.length-1;i++)dim(P,ax,at,pts[i],pts[i+1],f2(pts[i+1]-pts[i]));};
   const xs=Layout.splits(L,'x'),zs=Layout.splits(L,'z');
   chain('x',F.z0-.5,xs);chain('z',F.x0-.6,zs);
@@ -736,7 +749,7 @@ function buildItem(it){
   }
   g.position.set(it.x,0,it.z);g.rotation.y=itemAngle(it)*Math.PI/180;g.scale.set(it.sx||1,it.sy||1,it.sz||1);return engine.tag(g,'item',it.id);
 }
-function buildItems(){clear(itemsG);for(const it of state.items)itemsG.add(buildItem(it));engine.refresh();need=true;}
+function buildItems(){clear(itemsG);for(const it of state.items)if(Layout.isVisible(state.layout,'item',it))itemsG.add(buildItem(it));engine.refresh();need=true;}
 function objOf(id){return itemsG.children.find(o=>o.userData.entity.id===id);}
 function itemOf(id){return state.items.find(i=>i.id===id);}
 // a piece faces `r` quarter turns plus a free offset `a` in degrees
@@ -773,13 +786,18 @@ const entityGroup=(kind,id)=>structG.children.find(c=>c.userData.entity&&c.userD
 let structQueued=false;
 function queueStruct(){if(structQueued)return;structQueued=true;requestAnimationFrame(()=>{structQueued=false;buildStruct();});}
 
+// elements on a locked layer stay visible but cannot be picked
+const isPickable=o=>{
+  const e=o.userData.entity,rec=e&&engine.kind(e.kind).get(e.id);
+  return!rec||!Layout.isLocked(state.layout,e.kind,rec);
+};
 const engine=Engine.create({host:view,dom:renderer.domElement,scene,camera,controls,
-  roots:()=>[itemsG,...structG.children.filter(c=>c.userData.entity&&!(tab==='paredes'&&!engine.tool&&c.userData.entity.kind==='wall'))],
+  roots:()=>[...itemsG.children.filter(isPickable),...structG.children.filter(c=>c.userData.entity&&isPickable(c)&&!(tab==='paredes'&&!engine.tool&&c.userData.entity.kind==='wall'))],
   on:{
     select:s=>{cur=s&&s.kind==='item'?s.id:null;if(s&&s.kind==='floor')selFloor=s.id;
       renderSelbar(s);renderList();if(tab==='vanos'||tab==='pisos')renderTab();need=true;},
     move:s=>{const bar=$('selbar').querySelector('.pos');if(bar)bar.textContent=engine.kind(s.kind).describe(engine.selectedRecord);need=true;},
-    commit:()=>{save();renderEmpty();if(tab==='vanos'||tab==='pisos'||tab==='cantidades')renderTab();},
+    commit:()=>{save();renderEmpty();if(tab==='vanos'||tab==='pisos'||tab==='cantidades'||tab==='capas')renderTab();},
     empty:r=>{if(tab!=='paredes')return;const fh=r.intersectObjects(structG.children,true).find(h=>h.object.userData.face);
       if(fh){selWall=fh.object.userData.face;renderWalls();buildStruct();}},
     mode:()=>{syncModeUI();renderEmpty();},
@@ -976,6 +994,10 @@ engine.define('stair',{
 });
 
 /* ---- barra de selección ---- */
+function layerSelect(kind,rec){
+  const current=Layout.layerOf(state.layout,kind,rec),options=state.layout.layers.map(l=>`<option value="${esc(l.id)}" ${current&&l.id===current.id?'selected':''}>${esc(l.name)}</option>`).join('');
+  return`<label class="fld">Capa<select data-layer aria-label="Capa">${options}</select></label>`;
+}
 const MOVE_ACTIONS=['l','u','d','r'],TURN_ACTIONS=['rotL','rotR','rot','rotBack'];
 function renderSelbar(s){
   const bar=$('selbar'),rec=s&&engine.selectedRecord;
@@ -987,10 +1009,21 @@ function renderSelbar(s){
   const group=(name,css,list)=>list.length?`<div class="grp ${css}"><span>${name}</span>${list.map(button).join('')}</div>`:'';
   bar.innerHTML=`<b>${s.kind==='item'?iconSvg(rec.t):''}${def.label(rec)}</b><span class="pos">${def.describe(rec)}</span>`+
     (sculpt?'<span class="note">Arrastra las manijas naranjas para estirar</span>':group('Mover','move',moves)+group('Girar','turn',turns)+group('','',others))+
-    (def.fields?`<div class="fields">${def.fields(rec).map(f=>`<label class="fld">${esc(f.label)}<input type="number" data-f="${f.id}" value="${f.value}" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${esc(f.label)} (${f.unit})"><span>${f.unit}</span></label>`).join('')}</div>`:'');
+    (def.fields?`<div class="fields">${def.fields(rec).map(f=>`<label class="fld">${esc(f.label)}<input type="number" data-f="${f.id}" value="${f.value}" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${esc(f.label)} (${f.unit})"><span>${f.unit}</span></label>`).join('')}${layerSelect(s.kind,rec)}</div>`:'');
 }
 $('selbar').addEventListener('click',e=>{const b=e.target.closest('button');if(b)engine.act(b.dataset.a);});
 $('selbar').addEventListener('change',e=>{
+  const pick=e.target.closest('select[data-layer]');
+  if(pick&&engine.selected){
+    const kind=engine.selected.kind,rec=engine.selectedRecord;
+    if(pick.value===Layout.BASE_OF[kind])delete rec.layer;else rec.layer=pick.value;
+    const layer=Layout.layerOf(state.layout,kind,rec),gone=!layer||layer.visible===false||layer.locked;
+    if(gone)engine.select(null);
+    buildStruct();buildItems();
+    if(gone)save();else engine.changed(null);
+    if(tab==='capas')renderCapas();
+    return;
+  }
   const input=e.target.closest('input[data-f]');if(!input||!engine.selected)return;
   const def=engine.kind(engine.selected.kind),rec=engine.selectedRecord;
   const f=def.fields(rec).find(x=>x.id===input.dataset.f),raw=parseFloat(input.value);
@@ -1250,7 +1283,7 @@ function renderStyle(){
   seg($('woods'),k=>{state.wood=k;applyMetalWood();save();buildStruct();});
 }
 function renderList(){const el=$('itemlist');if(!el)return;
-  el.innerHTML=state.items.length?state.items.map(it=>`<button data-id="${esc(it.id)}" class="${it.id===cur?'on':''}"><span>${iconSvg(it.t)}${LIB[it.t].n}</span><small style="font-family:var(--mono);color:var(--muted)">${f2(it.x)}, ${f2(it.z)}</small></button>`).join(''):'<p class="note">Todavía no hay muebles. Agrega uno de la biblioteca.</p>';}
+  el.innerHTML=state.items.length?state.items.filter(it=>Layout.isVisible(state.layout,'item',it)).map(it=>`<button data-id="${esc(it.id)}" class="${it.id===cur?'on':''}"><span>${iconSvg(it.t)}${LIB[it.t].n}</span><small style="font-family:var(--mono);color:var(--muted)">${f2(it.x)}, ${f2(it.z)}</small></button>`).join(''):'<p class="note">Todavía no hay muebles. Agrega uno de la biblioteca.</p>';}
 function spawnPoint(zone){
   const f=state.layout.floors.find(x=>x.zone===zone);
   return f?[f.x,f.z]:[Math.round(controls.target.x/SNAP)*SNAP,Math.round(controls.target.z/SNAP)*SNAP];
@@ -1380,7 +1413,7 @@ function renderVanos(){
   }
 }
 const planIsBlank=()=>Levels.list(state).every(l=>Layout.isEmpty(l.layout)&&!l.items.length);
-const RENDER={niveles:renderNiveles,estilo:renderStyle,muebles:renderMuebles,paredes:renderWalls,pisos:renderPisos,vanos:renderVanos,cantidades:renderCantidades,planos:renderPlanos};
+const RENDER={capas:renderCapas,niveles:renderNiveles,estilo:renderStyle,muebles:renderMuebles,paredes:renderWalls,pisos:renderPisos,vanos:renderVanos,cantidades:renderCantidades,planos:renderPlanos};
 function renderTab(){RENDER[tab]();}
 $('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.t;
   $('tabs').querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));for(const t of Object.keys(RENDER))$('p-'+t).hidden=t!==tab;
@@ -1393,6 +1426,64 @@ $('reset').onclick=()=>{$('resetConfirm').hidden=false;};
 $('resetNo').onclick=()=>{$('resetConfirm').hidden=true;};
 $('resetYes').onclick=()=>{state=defaultState();engine.select(null);save();applyMetalWood();buildStruct();buildItems();renderLevels();renderStyle();$('resetConfirm').hidden=true;
   $('tabs').querySelector('[data-t="estilo"]').click();};
+
+/* ================= capas ================= */
+const EYE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 3.9M6.6 6.6A17 17 0 0 0 2 12s4 7 10 7a9.700 9.700 0 0 0 4.200-.9"/></svg>';
+const LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+const UNLOCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.500-2"/></svg>';
+const LAYER_COLORS=['#ff6b6b','#4dd0e1','#ffd166','#06d6a0','#b388ff','#ff9f68','#7ec8ff','#f06292'];
+function layerCounts(){
+  const L=state.layout,count={},add=(kind,rec)=>{const l=Layout.layerOf(L,kind,rec);if(l)count[l.id]=(count[l.id]||0)+1;};
+  L.walls.forEach(r=>add('wall',r));L.openings.forEach(r=>add('opening',r));L.floors.forEach(r=>add('floor',r));L.stairs.forEach(r=>add('stair',r));state.items.forEach(r=>add('item',r));
+  return count;
+}
+// anything the selection could no longer reach after a layer changed is let go
+function dropBlockedSelection(){
+  const sel=engine.selected,rec=sel&&engine.selectedRecord;
+  if(rec&&(!Layout.isVisible(state.layout,sel.kind,rec)||Layout.isLocked(state.layout,sel.kind,rec)))engine.select(null);
+}
+function layersChanged(){dropBlockedSelection();save();buildStruct();buildItems();renderCapas();}
+function renderCapas(){
+  const layers=state.layout.layers,counts=layerCounts(),levelName=Levels.at(state,state.level).name;
+  $('p-capas').innerHTML=`<div><h3>Capas de «${esc(levelName)}»</h3><div class="plans">${layers.map(l=>{
+    const base=Layout.isBaseLayer(l.id),visible=l.visible!==false;
+    return`<div class="lyrow ${visible?'':'off'}" data-id="${esc(l.id)}">
+      <button class="tg" data-a="vis" aria-pressed="${visible}" aria-label="${visible?'Ocultar':'Mostrar'} ${esc(l.name)}" title="${visible?'Visible':'Oculta'}">${visible?EYE:EYE_OFF}</button>
+      <button class="tg lock" data-a="lock" aria-pressed="${l.locked===true}" aria-label="${l.locked?'Desbloquear':'Bloquear'} ${esc(l.name)}" title="${l.locked?'Bloqueada: no se puede seleccionar':'Desbloqueada'}">${l.locked?LOCK:UNLOCK}</button>
+      <input type="color" value="${esc(l.color)}" data-a="color" aria-label="Color de ${esc(l.name)}">
+      <input type="text" value="${esc(l.name)}" maxlength="30" data-a="name" aria-label="Nombre de la capa" ${base?'disabled':''}>
+      <small title="Elementos en la capa">${counts[l.id]||0}</small>
+      ${base?'<span></span>':`<button class="btn" data-a="del" aria-label="Eliminar ${esc(l.name)}">✕</button>`}</div>`;}).join('')}</div>
+    <div class="foot" style="margin-top:8px"><button class="btn on" id="lyAdd">Añadir capa</button><button class="btn" id="lyShow">Mostrar todas</button><button class="btn" id="lyUnlock">Desbloquear todas</button></div></div>
+    <p class="note">Una capa oculta no se dibuja ni se exporta. Una capa bloqueada se ve pero no se puede seleccionar ni mover. Para mandar una pieza a otra capa, selecciónala y elige la capa abajo. Cada nivel tiene las suyas; las capas propias salen en el DXF con su nombre y color.</p>`;
+  $('lyAdd').onclick=()=>{
+    const n=layers.filter(l=>!Layout.isBaseLayer(l.id)).length+1;
+    layers.push({id:nextId('c'),name:`Capa ${n}`,color:LAYER_COLORS[(n-1)%LAYER_COLORS.length],visible:true,locked:false});
+    save();renderCapas();
+  };
+  $('lyShow').onclick=()=>{layers.forEach(l=>{l.visible=true;});layersChanged();};
+  $('lyUnlock').onclick=()=>{layers.forEach(l=>{l.locked=false;});layersChanged();};
+  const box=$('p-capas');
+  const layerOfRow=e=>layers.find(l=>l.id===e.target.closest('.lyrow').dataset.id);
+  box.onclick=e=>{
+    const b=e.target.closest('button[data-a]');if(!b)return;
+    const layer=layerOfRow(e);if(!layer)return;
+    if(b.dataset.a==='vis'){layer.visible=layer.visible===false;layersChanged();}
+    else if(b.dataset.a==='lock'){layer.locked=!layer.locked;layersChanged();}
+    else if(b.dataset.a==='del'){
+      for(const rec of[...state.layout.walls,...state.layout.openings,...state.layout.floors,...state.layout.stairs,...state.items])if(rec.layer===layer.id)delete rec.layer;
+      state.layout.layers=state.layout.layers.filter(l=>l!==layer);layersChanged();
+    }
+  };
+  box.onchange=e=>{
+    const input=e.target.closest('input[data-a]');if(!input)return;
+    const layer=layerOfRow(e);if(!layer)return;
+    if(input.dataset.a==='color')layer.color=input.value;
+    else if(input.dataset.a==='name')layer.name=input.value.trim().slice(0,30)||layer.name;
+    save();renderCapas();
+  };
+}
 
 /* ================= niveles ================= */
 const persistView=()=>{if(!REMOTE_ID)plans.save(state);};

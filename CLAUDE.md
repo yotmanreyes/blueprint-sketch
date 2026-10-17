@@ -81,6 +81,13 @@ Los pisos no se mueven arrastrándolos (así se puede girar la cámara sobre ell
 - Cambiar de nivel solo guarda en local (`persistView`); no registra historial ni toca la cuota de planos compartidos. `applyRemoteData` conserva el nivel que se está viendo.
 - `Drawing.build(state, lib, level)` dibuja un nivel (capa `STAIRS`); las cantidades suman todos los niveles.
 
+## Capas
+
+- `layout.layers = [{id, name, color, visible, locked}]`, por nivel (viajan con el nivel al cambiar). Hay seis capas base (`l_walls`, `l_openings`, `l_floors`, `l_stairs`, `l_items`, `l_dims`) que `Layout.ensureLayers` garantiza; las propias usan ids `c<n>`.
+- Un elemento (muro, vano, piso, escalera, mueble) pertenece a la capa base de su tipo salvo que lleve `layer: <id>`. `Layout.layerOf/isVisible/isLocked` resuelven la capa; si el id no existe, cae a la base.
+- Oculta: no se construye en 3D (`buildLevelInto`, `buildItems`) ni se dibuja al exportar. Bloqueada: se ve pero `isPickable` la saca de las raíces del raycast del engine. `l_dims` controla cotas y rótulos de habitación.
+- `Drawing.build` pasa las capas propias a capas CAD con su nombre (`layerName`) y el color AutoCAD más cercano (`aci`); `Export` las escribe en PDF y DXF. Las cantidades cuentan todo, también lo oculto.
+
 ## Modelo de plano (`src/layout.js`)
 
 Muros, vanos y pisos son datos en `state.layout`, en vez de geometría fija:
