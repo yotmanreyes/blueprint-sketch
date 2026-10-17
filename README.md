@@ -23,6 +23,7 @@ Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeli
 - **Standard sizes.** Beds, wardrobes, tables, sofas, counters, shower trays, trees and more offer their usual sizes in a *Tamaño* menu, and typing or dragging a size is kept inside what is reasonable for that kind of piece. Fixtures, chairs and vehicles keep their size.
 - **Type exact measurements.** Select anything and edit its numbers in the bar below: wall length and thickness, door and window size and position, room width and depth (the walls follow), furniture position, rotation and size.
 - **Undo and redo** every change with `Ctrl/Cmd+Z` and `Ctrl/Cmd+Shift+Z`.
+- **Version history** per plan: save named versions, get automatic checkpoints while you work (and before the assistant changes the plan or before a restore), see what restoring would change, restore, or open any version as a new plan. Versions live in your browser and travel inside the exported plan file.
 - **Turn things freely.** Rotate a piece with its handle, `Alt`/`Shift` + scroll, a trackpad twist (Safari) or `Shift` + arrow keys.
 - **Export a drawing to scale.** PDF (vector, with title block) and DXF (millimetres, with layers) on A4, A3 or A2, at an automatic or chosen scale.
 - **Quantities and budget.** Areas per room across all levels, net wall surface per finish, floors, slabs, stairs, doors, windows and furniture, with unit prices, contingency and a CSV for spreadsheets.
@@ -82,6 +83,7 @@ src/
   agent-tools.js   what an AI agent may do to a plan (shared by the assistant and the MCP server)
 mcp/               the MCP server
   history.js       undo and redo as snapshots
+  versions.js      named versions and automatic checkpoints of each plan, with a diff
   drawing.js       a plan as 2D drawing primitives (walls, door swings, dimensions)
   export.js        PDF and DXF writers, sheet and scale selection
   quantities.js    bill of quantities and budget

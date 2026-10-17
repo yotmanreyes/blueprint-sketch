@@ -18,6 +18,7 @@ Sistema de coordenadas, en metros y vista desde arriba: `x` de izquierda a derec
   - **Pisos:** 6 porcelanatos, por piso (el nombre del piso también se edita ahí).
   - **Vanos:** lista de puertas y ventanas; el vano seleccionado se ajusta con sliders (ancho, alto, antepecho, posición en el muro).
   - **Planos:** varios diseños guardados con nombre y miniatura.
+  - **Versiones:** historial del plano abierto (ver *Versiones*).
 
 ## Historial, medidas, exportación y cantidades
 
@@ -34,6 +35,13 @@ Sistema de coordenadas, en metros y vista desde arriba: `x` de izquierda a derec
 - El escalado de una pieza es `sx`, `sy`, `sz`; `sy` solo existe para modelos importados.
 - Seguridad: el cargador bloquea todo lo que no sea `data:` o `blob:` (`setURLModifier`), así un modelo no puede provocar peticiones externas. El servidor repite la comprobación (`checkGlb`): cabecera, longitud declarada, trozo JSON y ninguna referencia externa.
 - En planos compartidos: `PUT/GET /api/plans/:id/models/:mid` (binario, ≤ 4 MB por el límite de 4,5 MB de las funciones, 40 archivos y 40 MB por plano). Se guarda primero el archivo y luego se registra en `plan.modelFiles`, así un modelo registrado siempre tiene archivo. Los editores suben lo que falta antes de guardar; los demás descargan lo que no tienen y lo guardan marcado con `source` para que no aparezca en su biblioteca. Se sirven `private, immutable` y `nosniff`.
+
+## Versiones
+
+- `src/versions.js` (`Versions.create(storage)`): cada plano tiene versiones guardadas (`named`, hasta 30, con nombre) y puntos automáticos (`auto`, los 12 más recientes), en `localStorage` bajo `blueprint-sketch-versions-v1`, por clave de plano (id local, o `r:<id>` en un plano compartido). Cada versión es una foto completa del plano. Si el almacenamiento se llena se descartan primero los automáticos.
+- Puntos automáticos: `checkpointIfDue` guarda el plano **tal como estaba antes** de la edición, como máximo uno cada 10 min; además antes de cada mensaje del asistente, antes de restaurar y antes de cargar cambios de otras personas. Un punto idéntico al más reciente no se repite.
+- `Versions.diff(a, b)` cuenta altas, bajas y cambios por tipo de elemento (emparejados por id y nivel) y si cambiaron acabados o ajustes; la lista muestra *Al restaurar: …* respecto al plano actual.
+- Restaurar guarda antes el estado actual y registra un paso de deshacer. *Copia* abre la versión como plano nuevo. El archivo exportado lleva `versions`; al importar solo se aceptan fotos válidas. Las versiones de un plano compartido son de cada navegador, no se suben al servidor (no gastan cuota de Blob).
 
 ## Planos compartidos
 
