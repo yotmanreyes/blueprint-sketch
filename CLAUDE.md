@@ -72,6 +72,15 @@ Las teclas mueven la cámara mientras se mantienen pulsadas (`Shift` acelera): `
 
 Los pisos no se mueven arrastrándolos (así se puede girar la cámara sobre ellos); se mueven con las flechas o se estiran con manijas.
 
+## Niveles y escaleras
+
+- `src/levels.js`: el nivel abierto vive en `state.layout` y `state.items` (todo el código de edición sigue igual); los demás están aparcados en `state.levels[i] = {id, name, layout, items}`. La entrada del nivel abierto solo lleva `id` y `name`. `state.level` es el índice abierto. `Levels.switchTo` intercambia; `Levels.ensure` normaliza planos viejos; `Levels.list/at` dan todos los niveles resueltos.
+- Cada nivel mide `H = 2,4` m más `SLAB = 0,2` m de losa (`Levels.PITCH`). El nivel abierto siempre se dibuja en y = 0 y los demás se desplazan (`Levels.offset`), así la cámara, el engine y los planos de arrastre no cambian.
+- Los niveles de abajo se dibujan siempre como contexto (`buildOthers`, sin selección ni luces; se reconstruyen solo si cambia su firma). Los de arriba solo con *Ver arriba*. En la vista de planta, `addGhost` marca los muros del nivel de abajo.
+- Una escalera (`layout.stairs`: `{id,x,z,w,d,r}`, sube por +z local, `r` cuartos de vuelta) pertenece al nivel donde empieza y sube un `PITCH`. Abre el piso, la losa y el cielo del nivel de arriba (`Layout.subtractRects` con `Levels.arriving`). Quitar un nivel borra las escaleras que llegaban a él.
+- Cambiar de nivel solo guarda en local (`persistView`); no registra historial ni toca la cuota de planos compartidos. `applyRemoteData` conserva el nivel que se está viendo.
+- `Drawing.build(state, lib, level)` dibuja un nivel (capa `STAIRS`); las cantidades suman todos los niveles.
+
 ## Modelo de plano (`src/layout.js`)
 
 Muros, vanos y pisos son datos en `state.layout`, en vez de geometría fija:
@@ -89,7 +98,7 @@ Todo lo que se puede tocar en la escena es una entidad de un *kind* registrado c
 - `def` implementa: `get(id)`, `object(id)`, `label`, `describe`, `grab`, `drag`, `live`, `rebuild`, `keys`, `actions`, `act`. Opcionales: `plane` (por defecto el piso `y = 0`), `draggable: false`, `pivot`/`rotator`/`rotateTo`/`rotateBy` (giro libre), `priority` (gana entre golpes cercanos; el vano sobre su muro), `handles(rec)` y `dragHandle(rec, i, punto)` para esculpir.
 - `act` devuelve `{rebuild?, select?}`; el engine reconstruye, emite `commit` (el editor guarda) y refresca la selección.
 - Herramientas de dibujo: objetos `{hover, down, move, up, end}` que se activan con `engine.setTool(t)` en modo Construir. Al terminar llaman `engine.changed()`.
-- Kinds actuales: `item`, `wall`, `opening` y `floor`.
+- Kinds actuales: `item`, `wall`, `opening`, `floor` y `stair`.
 
 ## Arquitectura del editor 3D
 

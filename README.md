@@ -14,11 +14,12 @@ Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeli
   - *Build* selects, moves and draws.
   - *Sculpt* stretches walls, openings, floors and furniture with handles.
 - **Furnish and style.** A library of furniture and accessories, **your own 3D models** (import `.glb` files), five style presets, wall finishes per side (paint, microcement, brick, tile, wood slats) and floor finishes per room.
+- **Several levels and stairs.** Add storeys above the ground floor, switch between them from the header (or with `PageUp`/`PageDown`), see a faint footprint of the level below to draw over, and connect levels with stairs that open the floor above.
 - **Type exact measurements.** Select anything and edit its numbers in the bar below: wall length and thickness, door and window size and position, room width and depth (the walls follow), furniture position, rotation and size.
 - **Undo and redo** every change with `Ctrl/Cmd+Z` and `Ctrl/Cmd+Shift+Z`.
 - **Turn things freely.** Rotate a piece with its handle, `Alt`/`Shift` + scroll, a trackpad twist (Safari) or `Shift` + arrow keys.
 - **Export a drawing to scale.** PDF (vector, with title block) and DXF (millimetres, with layers) on A4, A3 or A2, at an automatic or chosen scale.
-- **Quantities and budget.** Areas per room, net wall surface per finish, floors, doors, windows and furniture, with unit prices, contingency and a CSV for spreadsheets.
+- **Quantities and budget.** Areas per room across all levels, net wall surface per finish, floors, slabs, stairs, doors, windows and furniture, with unit prices, contingency and a CSV for spreadsheets.
 - **Keep several plans.** Plans are saved in your browser with a name and thumbnail; duplicate, rename, export to `.json` and import them back.
 - **Share each plan on its own route.** A shared plan opens at `/p/<id>`. Links carry a role:
 
@@ -68,7 +69,8 @@ Everything works locally **except sharing**, which needs the API below.
 src/
   editor-3d.html   the editor: scene, panels and wiring
   engine.js        selectable objects, modes, tools, handles, rotation
-  layout.js        the plan model: walls, openings, floors, corner joins
+  layout.js        the plan model: walls, openings, floors, stairs, corner joins
+  levels.js        storeys: the open level and the parked ones
   history.js       undo and redo as snapshots
   drawing.js       a plan as 2D drawing primitives (walls, door swings, dimensions)
   export.js        PDF and DXF writers, sheet and scale selection
@@ -113,7 +115,8 @@ A plan is plain JSON, so it is easy to inspect, diff and generate:
 state.layout = {
   walls:    [{ id, x1, z1, x2, z2, t, faces: { lo, hi } }],   // axis-aligned, metres
   openings: [{ id, wall, pos, w, h, sill, kind }],            // 'door' | 'window'
-  floors:   [{ id, x, z, w, d, f, name }]
+  floors:   [{ id, x, z, w, d, f, name }],
+  stairs:   [{ id, x, z, w, d, r }]                           // r quarter turns; climbs to the next level
 };
 ```
 
@@ -156,12 +159,12 @@ To check the real Blob store (it writes, reads and deletes one temporary file), 
 
 ## What it is, and what it is not
 
-Blueprint Sketch is for **schematic design**: quick layouts, conversations with clients and contractors, teaching and prototyping. It is not a BIM or CAD replacement. It has no structural or MEP calculation, no stairs or roofs, no multi-storey buildings, only basic `.glb` import (no other formats) and no photorealistic rendering, and its drawings are not construction documents.
+Blueprint Sketch is for **schematic design**: quick layouts, conversations with clients and contractors, teaching and prototyping. It is not a BIM or CAD replacement. It has no structural or MEP calculation, no roofs, only straight stairs between flat storeys of equal height, only basic `.glb` import (no other formats) and no photorealistic rendering, and its drawings are not construction documents.
 
 ## Roadmap
 
 - More model formats and compressed glTF (Draco, KTX2).
-- Several levels, stairs, and curved or diagonal walls.
+- Curved or diagonal walls, turning stairs and roofs.
 - Real internationalisation.
 
 ## Contributing
