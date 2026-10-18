@@ -81,10 +81,10 @@ const Models=(()=>{
 
   function thumbnail(holder,{w,d,h}){
     const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
-    renderer.setSize(THUMB_PX,THUMB_PX);renderer.outputEncoding=THREE.sRGBEncoding;
+    renderer.setSize(THUMB_PX,THUMB_PX);renderer.outputColorSpace=THREE.SRGBColorSpace;
     const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(35,1,.05,100);
-    scene.add(new THREE.HemisphereLight(0xffffff,0x777777,1.1));
-    const sun=new THREE.DirectionalLight(0xffffff,1.1);sun.position.set(2,4,3);scene.add(sun);
+    scene.add(new THREE.HemisphereLight(0xffffff,0x777777,1.1*Math.PI));
+    const sun=new THREE.DirectionalLight(0xffffff,1.1*Math.PI);sun.position.set(2,4,3);scene.add(sun);
     const copy=holder.clone(true);scene.add(copy);
     const radius=Math.max(w,d,h)*1.9;
     camera.position.set(radius*.8,h/2+radius*.55,radius*.9);camera.lookAt(0,h/2,0);
