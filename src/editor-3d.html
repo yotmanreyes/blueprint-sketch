@@ -312,7 +312,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 }
 </style>
 
-<div id="boot" role="status" aria-live="polite"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#232628"/><path d="M14 14h36v36H14z" fill="none" stroke="#d08a3c" stroke-width="5"/><path d="M14 34h22v16M36 34V14" fill="none" stroke="#d08a3c" stroke-width="4"/></svg><b>Blueprint Sketch</b><small class="ver">v0.22.3</small><div class="bar"><i></i></div><p id="bootMsg">Cargando el editor…</p></div>
+<div id="boot" role="status" aria-live="polite"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#232628"/><path d="M14 14h36v36H14z" fill="none" stroke="#d08a3c" stroke-width="5"/><path d="M14 34h22v16M36 34V14" fill="none" stroke="#d08a3c" stroke-width="4"/></svg><b>Blueprint Sketch</b><small class="ver">v0.22.4</small><div class="bar"><i></i></div><p id="bootMsg">Cargando el editor…</p></div>
 <div id="snack" role="status" aria-live="polite" hidden></div>
 <div class="wrap">
   <div id="view">
@@ -333,7 +333,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
   </div>
 
   <header class="topbar">
-    <div class="brand"><h1>Blueprint Sketch <span class="ver" id="appVersion">v0.22.3</span></h1><p class="hint" id="planTitle"></p><p class="hint" id="shareBadge" hidden></p></div>
+    <div class="brand"><h1>Blueprint Sketch <span class="ver" id="appVersion">v0.22.4</span></h1><p class="hint" id="planTitle"></p><p class="hint" id="shareBadge" hidden></p></div>
     <div class="seg" id="modes" role="group" aria-label="Modo">
       <button data-v="navigate" aria-pressed="false" title="Navegar: solo mueve la cámara (1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg><span class="lbl">Navegar</span><kbd>1</kbd></button>
       <button data-v="build" aria-pressed="true" title="Construir: selecciona, mueve y dibuja (2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 20V9l7-5 7 5v11M10 20v-6h4v6"/></svg><span class="lbl">Construir</span><kbd>2</kbd></button>
@@ -997,7 +997,7 @@ function buildItem(it){
       C(g,0,.53,-.05,.07,.03,M.metal);C(g,0,.65,-.05,.012,.22,M.metal,8);C(g,0,.8,-.05,.13,.14,M.metal,24,.07);{const l=new THREE.PointLight(0xffc98a,.35*LAMP_SCALE,2.5,2);l.position.set(0,.72,0);g.add(l);}break;
     case'escritorio':B(g,-hw,hw,.72,.76,-hd,hd,M.wood);for(const[x,z]of[[-hw+.03,-hd+.03],[hw-.03,-hd+.03],[-hw+.03,hd-.03],[hw-.03,hd-.03]])B(g,x-.02,x+.02,0,.72,z-.02,z+.02,M.metal);
       B(g,-.25,.25,.76,1.1,-hd+.05,-hd+.08,M.screen);B(g,-.03,.03,.76,.8,-hd+.06,-hd+.15,M.metal);break;
-    case'silla':B(g,-hw,hw,.44,.48,-hd,hd,M.wood);B(g,-hw,hw,.5,.88,hd-.04,hd,M.metal);for(const[x,z]of[[-hw+.03,-hd+.03],[hw-.03,-hd+.03],[-hw+.03,hd-.03],[hw-.03,hd-.03]])B(g,x-.015,x+.015,0,.44,z-.015,z+.015,M.metal);break;
+    case'silla':B(g,-hw,hw,.44,.48,-hd,hd,M.wood);B(g,-hw,hw,.5,.88,-hd,-hd+.04,M.metal);for(const[x,z]of[[-hw+.03,-hd+.03],[hw-.03,-hd+.03],[-hw+.03,hd-.03],[hw-.03,hd-.03]])B(g,x-.015,x+.015,0,.44,z-.015,z+.015,M.metal);break;
     case'estante':{for(const[x,z]of[[-hw,-hd],[hw-.02,-hd],[-hw,hd-.02],[hw-.02,hd-.02]])B(g,x,x+.02,0,1.8,z,z+.02,M.metal);
       const R=rnd(it.id.length*7+3);for(const y of[.05,.45,.85,1.25,1.65]){B(g,-hw,hw,y,y+.03,-hd,hd,M.wood);if(y<1.6){let x=-hw+.04;while(x<hw-.12){const bw=.03+R()*.04,bh=.2+R()*.12;if(R()<.75)B(g,x,x+bw,y+.03,y+.03+bh,-hd+.04,hd-.06,M.book[R()*4|0]);x+=bw+.005+(R()<.15?.12:0);}}}break;}
     case'repisa':case'repisabano':B(g,-hw,hw,e,e+.035,-hd,hd,M.wood);for(const x of[-hw+.15,hw-.15])B(g,x-.01,x+.01,e-.12,e,-hd,-hd+.02,M.metal),B(g,x-.01,x+.01,e-.02,e,-hd,hd-.03,M.metal);
