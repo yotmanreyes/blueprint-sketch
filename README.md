@@ -12,7 +12,6 @@ Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeli
 - **Draw like a blueprint.** Start from an empty grid and add walls, rooms, doors and windows. Dimensions, wall outlines and room labels are drawn for you.
 - **A layout like a professional editor.** Modes on the top bar, drawing tools on the left, level and view switches on the bottom, panels on the right, and an on-canvas camera pad to move and turn the view. The *Perspectiva* menu lists every view: eight aerial angles by compass point and one view inside each room.
 - **AI agents.** An MCP server and an in-editor assistant let a model of your choice draw plans with the editor's own tools and rules.
-- **Two looks.** *Plano* is the blueprint view; *Fotorrealista* lights the scene with a sky, reflections, a warm sun with soft shadows, fog, plaster walls and relief on the floors, and *Guardar imagen* saves the current view as a PNG.
 - **Three modes so nothing moves by accident.**
   - *Navigate* only moves the camera.
   - *Build* selects, moves and draws.
@@ -25,6 +24,7 @@ Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeli
 - **Undo and redo** every change with `Ctrl/Cmd+Z` and `Ctrl/Cmd+Shift+Z`.
 - **Three looks**: the blueprint view, a white *Boceto* with black outlines, and a lit *Fotorrealista* mode. New finishes (dark oak, polished and exposed concrete, wood-batten or concrete ceilings) and people silhouettes help with the sketch look.
 - **Version history** per plan: save named versions, get automatic checkpoints while you work (announced by a notice, with the current version, hash and time shown in the top bar next to share, export and full screen) (and before the assistant changes the plan or before a restore), see what restoring would change, restore, or open any version as a new plan. Versions live in your browser and travel inside the exported plan file.
+- **Works on a phone.** On narrow screens the viewer takes the whole screen, the tools float over it, the panel opens as a bottom sheet and touch drags draw and move pieces.
 - **Turn things freely.** Rotate a piece with its handle, `Alt`/`Shift` + scroll, a trackpad twist (Safari) or `Shift` + arrow keys.
 - **Export a drawing to scale.** PDF (vector, with title block) and DXF (millimetres, with layers) on A4, A3 or A2, at an automatic or chosen scale.
 - **Quantities and budget.** Areas per room across all levels, net wall surface per finish, floors, slabs, stairs, doors, windows and furniture, with unit prices, contingency and a CSV for spreadsheets.

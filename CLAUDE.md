@@ -109,6 +109,12 @@ Los pisos no se mueven arrastrándolos (así se puede girar la cámara sobre ell
 - Tercer aspecto de la barra inferior (`sketch`, junto a *Plano* y *Fotorrealista*, mismo `setLook` y misma preferencia en `localStorage`): fondo y muros blancos, luz pareja y contornos negros. `edgeMat` pasa a negro opaco para los muros y `addInk` dibuja las aristas de cada pieza (solo mallas opacas, sin esferas ni vidrio). Cambiar de aspecto reconstruye muebles y niveles de fondo (`buildItems`, `buildOthers(true)`). No usa cielo ni niebla.
 - Acabados pensados para ese aspecto: pisos *Roble oscuro* y *Concreto pulido*, pared *Concreto visto* (`t: 'concreto'`, admite color) y **cielo por piso**: `floor.c` = `madera` (listones) o `concreto`; sin `c` el cielo es liso (`Catalog.CEILINGS`, `ceilMat`). Lo valida el servidor y lo cambia el agente con `set_floor_ceiling`. La pieza `persona` es una silueta de pie para dar escala.
 
+## Móvil
+
+- `<meta name="viewport">` con `viewport-fit=cover`. Hasta 900 px el panel y las herramientas pasan a filas; hasta 640 px (teléfono) el visor ocupa toda la pantalla: las herramientas flotan como una fila sobre el visor, el panel arranca cerrado y se abre como hoja inferior (botón ☰, 48 vh), el pad de cámara se muestra con *Cámara* de la barra inferior, el menú de versión ocupa el ancho y la barra de selección esconde los campos numéricos tras *Medidas*.
+- Las reglas de teléfono van **al final** de la hoja de estilos (`@media (max-width:640px)`): si se mueven antes, pierden contra las reglas base de mismo peso. Los campos de texto usan 16 px para que iOS no haga zoom.
+- Se prueba en un iframe de 390 px (la ventana del navegador no baja de ese ancho).
+
 ## Aspecto fotorrealista
 
 - La barra inferior alterna *Plano* y *Fotorrealista* (`setLook`, preferencia en `localStorage`, no va en el plano). `applyLook` cambia, sin tocar los datos: fondo y entorno (un cielo generado con `PMREMGenerator`, uno brillante para el fondo y otro a la mitad para iluminar), niebla, luz del sol (cálida, 4096 px, más alta en `aimSun`), exposición, `near`/`far` de la cámara, el color de `M.struct` (yeso en vez de gris de plano), un suelo grande, y oculta rejilla, cotas y aristas.
