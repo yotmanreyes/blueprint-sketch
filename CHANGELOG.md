@@ -2,6 +2,9 @@
 
 All notable changes to Blueprint Sketch. Versions follow [Semantic Versioning](https://semver.org).
 
+## 0.22.2 — 2026-10-18
+- The in-editor assistant only answers about the project (plans, remodeling, furniture, quantities and how to use the editor) and politely declines anything else.
+
 ## 0.22.1 — 2026-10-18
 - The version number shows on the loading screen and in the top bar.
 
