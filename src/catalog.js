@@ -17,13 +17,14 @@ const Catalog=(()=>{
     caminadora:{n:'Caminadora',w:.9,d:1.8,zone:''}, mancuernas:{n:'Rack de mancuernas',w:1.8,d:.5,zone:''}, auto:{n:'Automóvil',w:1.9,d:4.4,zone:''},
     tumbona:{n:'Tumbona',w:.7,d:1.9,zone:''}, porteria:{n:'Portería',w:3.0,d:.3,zone:''}, canasta:{n:'Aro de baloncesto',w:1.2,d:.8,zone:''},
     columpio:{n:'Columpios',w:2.4,d:1.4,zone:''}, tobogan:{n:'Tobogán',w:.9,d:2.6,zone:''}, mesapicnic:{n:'Mesa de picnic',w:1.8,d:1.6,zone:''}, fuente:{n:'Fuente',w:2.4,d:2.4,zone:''},
+    persona:{n:'Persona',w:.5,d:.35,zone:''},
     ducha:{n:'Ducha 1,20×0,90',w:1.2,d:.9,zone:'bano'}, sanitario:{n:'Sanitario',w:.4,d:.7,zone:'bano'}, lavamanos:{n:'Lavamanos flotante',w:.6,d:.45,zone:'bano'},
     repisabano:{n:'Repisa de baño',w:.6,d:.15,elev:1.2,zone:'bano'}
   };
   const LIBGROUPS=[['Guardado',['closet120','closet180','closet240','estante','repisa']],['Dormir y trabajar',['cama100','cama140','cama160','mesanoche','escritorio','silla']],
     ['Estar y decoración',['tv','sofa','sillon','tapete','planta','lampara','espejo','banco']],['Cocina y comedor',['cocina','nevera','mesa','mesacafe','barra']],
     ['Baño',['ducha','sanitario','lavamanos','repisabano']],['Exterior',['arbol','arbusto','farola','bancoparque','mesapicnic','fuente','tumbona','auto']],
-    ['Juegos y deporte',['columpio','tobogan','porteria','canasta','caminadora','mancuernas']],['Aulas',['pupitre','pizarra']]];
+    ['Juegos y deporte',['columpio','tobogan','porteria','canasta','caminadora','mancuernas']],['Aulas',['pupitre','pizarra']],['Personas',['persona']]];
   /* Standard sizes by kind of piece, [name, width, depth] in metres. `w` and `d` bound what can be typed or dragged, so a piece
      never becomes absurd; pieces that are not listed (fixtures, chairs, vehicles) keep their size. `uniform` scales all three axes. */
   const STD={
@@ -58,9 +59,11 @@ const Catalog=(()=>{
   const stdOf=type=>STD[STD_OF[type]||type];
   const FLOORS=[['marmol_blanco','Mármol blanco 60×120',false],['marmol_negro','Mármol negro 60×120',false],['cemento','Tipo cemento 60×60',false],
     ['madera','Tipo madera 20×120',false],['terrazo','Terrazo 60×60',false],['gris_claro','Gris claro 60×60',false],
+    ['roble_oscuro','Roble oscuro 20×120',false],['concreto_pulido','Concreto pulido',false],
     ['cesped','Césped',true],['adoquin','Adoquín',true],['arena','Arena',true],['agua','Agua',true],['cancha','Cancha',true],['pavimento','Pavimento',true]];
-  const WALL_FINISHES=[['pintura','Pintura'],['micro','Microcemento'],['ladrillo','Ladrillo'],['enchape-grande','Enchape 60×120'],['enchape-metro','Enchape metro'],['madera','Listones de madera']];
+  const WALL_FINISHES=[['pintura','Pintura'],['micro','Microcemento'],['ladrillo','Ladrillo'],['enchape-grande','Enchape 60×120'],['enchape-metro','Enchape metro'],['madera','Listones de madera'],['concreto','Concreto visto']];
+  const CEILINGS=[['liso','Liso'],['madera','Listones de madera'],['concreto','Concreto visto']];
   const STYLES=[['ind_concreto','Industrial concreto'],['ind_ladrillo','Industrial ladrillo'],['moderno','Moderno minimal'],['calido','Cálido con madera'],['nordico','Nórdico']];
-  return{LIB,LIBGROUPS,STD,STD_OF,stdOf,FLOORS,WALL_FINISHES,STYLES};
+  return{LIB,LIBGROUPS,STD,STD_OF,stdOf,FLOORS,WALL_FINISHES,CEILINGS,STYLES};
 })();
 if(typeof module!=='undefined')module.exports=Catalog;

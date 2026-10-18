@@ -72,7 +72,7 @@ Prefer standard sizes. Do not delete or replace what the person already drew unl
     const w=Layout.wallById(L,o.wall),a=w?Layout.span(w)[0]+o.pos+o.w/2:null;
     return{id:o.id,kind:o.kind,wall:o.wall,center:w?(Layout.isH(w)?{x:round(a),z:Layout.fixed(w)}:{x:Layout.fixed(w),z:round(a)}):null,width:o.w,height:o.h,sill:o.sill,...(o.layer?{layer:o.layer}:{})};
   }
-  const describeFloor=f=>({id:f.id,name:f.name,...Object.fromEntries(Object.entries(floorRect(f)).map(([k,v])=>[k,round(v)])),area:round(f.w*f.d),finish:f.f,...(f.layer?{layer:f.layer}:{})});
+  const describeFloor=f=>({id:f.id,name:f.name,...Object.fromEntries(Object.entries(floorRect(f)).map(([k,v])=>[k,round(v)])),area:round(f.w*f.d),finish:f.f,...(f.c?{ceiling:f.c}:{}),...(f.layer?{layer:f.layer}:{})});
   const describeStair=s=>({id:s.id,x:s.x,z:s.z,width:s.w,length:s.d,turns:s.r,climbs:['south','east','north','west'][s.r],...(s.layer?{layer:s.layer}:{})});
   const describeItem=it=>({id:it.id,type:it.t,name:lib(it.t).n,x:it.x,z:it.z,turns:it.r,...(it.a?{angle:it.a}:{}),...itemSize(it),...(it.layer?{layer:it.layer}:{})});
 
@@ -341,6 +341,12 @@ Prefer standard sizes. Do not delete or replace what the person already drew unl
     f.f=choice(args,'finish',Catalog.FLOORS.map(x=>x[0]));
     if(args.name!==undefined)f.name=text(args,'name');
     return describeFloor(f);
+  });
+  tool('set_floor_ceiling','Change the finish of the ceiling over a floor: plain (liso), wood battens (madera) or exposed concrete (concreto).',{floor_id:str('floor id'),ceiling:{type:'string',enum:Catalog.CEILINGS.map(c=>c[0])}},['floor_id','ceiling'],true,(env,args)=>{
+    const f=findElement(env,'floor',text(args,'floor_id',{max:40}));
+    const ceiling=choice(args,'ceiling',Catalog.CEILINGS.map(c=>c[0]));
+    if(ceiling==='liso')delete f.c;else f.c=ceiling;
+    return{...describeFloor(f),ceiling};
   });
 
   /* ---- levels ---- */

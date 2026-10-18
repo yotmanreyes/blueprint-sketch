@@ -1,7 +1,7 @@
 /* Bill of quantities and budget of a plan: areas per room, net wall surface per finish,
    floors per finish, openings and furniture. Prices are unit prices typed by the user. */
 const Quantities=(()=>{
-  const WALL_HEIGHT=2.4,FINISH_LABELS={pintura:'Pintura',micro:'Microcemento',ladrillo:'Ladrillo','enchape-grande':'Enchape 60×120','enchape-metro':'Enchape metro',madera:'Listones de madera'};
+  const WALL_HEIGHT=2.4,FINISH_LABELS={pintura:'Pintura',micro:'Microcemento',ladrillo:'Ladrillo','enchape-grande':'Enchape 60×120','enchape-metro':'Enchape metro',madera:'Listones de madera',concreto:'Concreto visto'};
   const round=(n,d=2)=>+n.toFixed(d);
 
   const finishKey=spec=>spec.t==='enchape'?`enchape-${spec.p||'grande'}`:spec.t;

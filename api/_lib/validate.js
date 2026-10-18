@@ -3,7 +3,8 @@
 const ID=/^[A-Za-z0-9_-]{1,40}$/;
 const KEY=/^[a-z0-9_]{1,40}$/;
 const COLOR=/^#[0-9a-fA-F]{6}$/;
-const FINISHES=new Set(['pintura','micro','ladrillo','enchape','madera']);
+const FINISHES=new Set(['pintura','micro','ladrillo','enchape','madera','concreto']);
+const CEILINGS=new Set(['madera','concreto']);
 const MAX={items:500,walls:400,openings:400,floors:100,lights:100,faces:2000,prices:300};
 const PRICE_KEY=/^[A-Za-z0-9:_.-]{1,60}$/;
 const MAX_PRICE=1e9;
@@ -55,8 +56,10 @@ function opening(o){
 }
 function floor(f){
   obj(f,'floor');
-  return withLayer(f,{id:id(f.id,'floor id'),x:num(f.x,'floor'),z:num(f.z,'floor'),w:num(f.w,'floor',.1,LIMIT),d:num(f.d,'floor',.1,LIMIT),
-    f:key(f.f,'floor finish'),name:text(f.name||'','floor name',30),zone:text(f.zone||'','floor zone',20)});
+  const out={id:id(f.id,'floor id'),x:num(f.x,'floor'),z:num(f.z,'floor'),w:num(f.w,'floor',.1,LIMIT),d:num(f.d,'floor',.1,LIMIT),
+    f:key(f.f,'floor finish'),name:text(f.name||'','floor name',30),zone:text(f.zone||'','floor zone',20)};
+  if(f.c!==undefined&&f.c!=='liso'){if(!CEILINGS.has(f.c))fail('ceiling finish');out.c=f.c;}
+  return withLayer(f,out);
 }
 function stair(s){
   obj(s,'stair');

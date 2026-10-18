@@ -116,6 +116,13 @@ test('layers, finishes and quantities work through the tools', () => {
   run(env, 'set_wall_finish', { wall_id: wall.id, side: 'both', finish: 'enchape-metro', color: '#ffffff' });
   assert.deepEqual(env.state.walls[env.state.layout.walls[0].faces.lo], { t: 'enchape', p: 'metro', c: '#ffffff' });
   run(env, 'set_floor_finish', { floor_id: env.state.layout.floors[0].id, finish: 'terrazo', name: 'Sala' });
+  run(env, 'set_floor_ceiling', { floor_id: env.state.layout.floors[0].id, ceiling: 'madera' });
+  assert.equal(env.state.layout.floors[0].c, 'madera');
+  run(env, 'set_wall_finish', { wall_id: wall.id, side: 'lo', finish: 'concreto' });
+  assert.deepEqual(env.state.walls[env.state.layout.walls[0].faces.lo], { t: 'concreto', c: '#f1f0ec' });
+  assert.doesNotThrow(() => cleanState(JSON.parse(JSON.stringify(env.state))));
+  run(env, 'set_floor_ceiling', { floor_id: env.state.layout.floors[0].id, ceiling: 'liso' });
+  assert.equal(env.state.layout.floors[0].c, undefined);
   assert.equal(run(env, 'get_quantities', {}).summary.floorArea, 12);
   assert.match(refuse(env, 'clear_level', {}), /confirm/);
   run(env, 'clear_level', { confirm: true });
@@ -137,4 +144,14 @@ test('every tool has a name, a description and a schema, and the catalogue is co
   assert.ok(catalog.pieces.some(p => p.id === 'cama140' && p.standardSizes.length === 5));
   assert.ok(catalog.templates.length >= 30);
   assert.ok(Agent.mutates('add_room') && !Agent.mutates('get_plan'));
+});
+
+test('the server keeps a known ceiling finish and rejects an unknown one', () => {
+  const env = { state: Agent.blank() };
+  run(env, 'add_room', { x0: 0, z0: 0, x1: 4, z1: 3 });
+  const floor = env.state.layout.floors[0];
+  floor.c = 'concreto';
+  assert.equal(cleanState(JSON.parse(JSON.stringify(env.state))).layout.floors[0].c, 'concreto');
+  floor.c = 'oro';
+  assert.throws(() => cleanState(JSON.parse(JSON.stringify(env.state))), /ceiling/);
 });

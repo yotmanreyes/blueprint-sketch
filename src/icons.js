@@ -33,6 +33,7 @@ const ICON_PATHS={
   tapete:'<rect x="3" y="7" width="18" height="10" rx="1"/><rect x="6" y="10" width="12" height="4"/><path d="M3 9H2M3 12H2M3 15H2M21 9h1M21 12h1M21 15h1"/>',
   planta:'<path d="M8 21l-1-6h10l-1 6z"/><path d="M12 15V8M12 11c-3 0-5-2-5-5 3 0 5 2 5 5zM12 9c0-3 2-5 5-5 0 3-2 5-5 5z"/>',
   lampara:'<path d="M8 4h8l2 6H6zM12 10v10M8 20h8"/>',
+  persona:'<circle cx="12" cy="5" r="2.5"/><path d="M8 21v-7a4 4 0 0 1 8 0v7M10 21v-5M14 21v-5"/>',
   espejo:'<rect x="7" y="3" width="10" height="18" rx="1"/><path d="M10 8l3-2M10 13l5-5"/>',
   banco:'<path d="M3 11h18v3H3zM5 14v6M19 14v6M8 4v4M12 4v4M16 4v4"/>',
   ducha:'<path d="M5 21V3h6"/><path d="M8 8a5 5 0 0 1 10 0z"/><path d="M10 11v2M13 11v3M16 11v2M11.5 17v2M14.5 18v2"/>',
