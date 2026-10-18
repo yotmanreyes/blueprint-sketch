@@ -312,7 +312,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 }
 </style>
 
-<div id="boot" role="status" aria-live="polite"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#232628"/><path d="M14 14h36v36H14z" fill="none" stroke="#d08a3c" stroke-width="5"/><path d="M14 34h22v16M36 34V14" fill="none" stroke="#d08a3c" stroke-width="4"/></svg><b>Blueprint Sketch</b><small class="ver">v0.22.2</small><div class="bar"><i></i></div><p id="bootMsg">Cargando el editor…</p></div>
+<div id="boot" role="status" aria-live="polite"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#232628"/><path d="M14 14h36v36H14z" fill="none" stroke="#d08a3c" stroke-width="5"/><path d="M14 34h22v16M36 34V14" fill="none" stroke="#d08a3c" stroke-width="4"/></svg><b>Blueprint Sketch</b><small class="ver">v0.22.3</small><div class="bar"><i></i></div><p id="bootMsg">Cargando el editor…</p></div>
 <div id="snack" role="status" aria-live="polite" hidden></div>
 <div class="wrap">
   <div id="view">
@@ -333,7 +333,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
   </div>
 
   <header class="topbar">
-    <div class="brand"><h1>Blueprint Sketch <span class="ver" id="appVersion">v0.22.2</span></h1><p class="hint" id="planTitle"></p><p class="hint" id="shareBadge" hidden></p></div>
+    <div class="brand"><h1>Blueprint Sketch <span class="ver" id="appVersion">v0.22.3</span></h1><p class="hint" id="planTitle"></p><p class="hint" id="shareBadge" hidden></p></div>
     <div class="seg" id="modes" role="group" aria-label="Modo">
       <button data-v="navigate" aria-pressed="false" title="Navegar: solo mueve la cámara (1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg><span class="lbl">Navegar</span><kbd>1</kbd></button>
       <button data-v="build" aria-pressed="true" title="Construir: selecciona, mueve y dibuja (2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 20V9l7-5 7 5v11M10 20v-6h4v6"/></svg><span class="lbl">Construir</span><kbd>2</kbd></button>
@@ -483,7 +483,53 @@ const TEX={
     g.fillStyle='rgba(20,12,6,.85)';g.fillRect(i*sw,0,5,n);}}),s:.6}
 };
 const woodCanvas=mkCanvas(512,(g,n)=>{g.fillStyle='#c79d70';g.fillRect(0,0,n,n);const R=rnd(13);for(let i=0;i<120;i++){g.strokeStyle=`rgba(${80+R()*40|0},${50+R()*20|0},25,${.12+R()*.25})`;g.lineWidth=1+R()*3;const y=R()*n;g.beginPath();g.moveTo(0,y);g.bezierCurveTo(n/3,y+(R()-.5)*20,2*n/3,y+(R()-.5)*20,n,y+(R()-.5)*10);g.stroke();}});
-function texFrom(canvas,rx,ry){const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx,ry);t.anisotropy=8;return t;}
+const texBase=new WeakMap();
+// textures of the same canvas share one GPU upload; only the repeat differs
+function texFrom(canvas,rx,ry,linear){
+  let base=texBase.get(canvas);
+  if(!base){base=new THREE.CanvasTexture(canvas);base.wrapS=base.wrapT=THREE.RepeatWrapping;base.anisotropy=8;if(!linear)base.colorSpace=THREE.SRGBColorSpace;texBase.set(canvas,base);}
+  const t=base.clone();t.repeat.set(rx,ry);t.needsUpdate=true;return t;
+}
+/* Relief: a height map is read from the colour canvas (brightness, or colour saturation for brick), smoothed between lo and hi, and
+   turned into a tangent-space normal map; optionally a roughness map makes the low parts (joints) rougher than the surface. */
+const reliefCache=new WeakMap();
+function reliefOf(canvas,o){
+  if(reliefCache.has(canvas))return reliefCache.get(canvas);
+  const n=canvas.width,px=canvas.getContext('2d').getImageData(0,0,n,n).data,h=new Float32Array(n*n);
+  const lo=o.lo??0,hi=o.hi??1,span=hi-lo;
+  for(let i=0;i<n*n;i++){
+    const r=px[i*4],g=px[i*4+1],b=px[i*4+2];
+    const v=(o.by==='sat'?Math.max(r,g,b)-Math.min(r,g,b):r*.299+g*.587+b*.114)/255,t=Math.min(1,Math.max(0,(v-lo)/span));
+    h[i]=t*t*(3-2*t);
+  }
+  const mk=()=>{const c=document.createElement('canvas');c.width=c.height=n;return c;};
+  const nc=mk(),nctx=nc.getContext('2d'),nd=nctx.createImageData(n,n),rc=o.rs===undefined?null:mk(),rctx=rc&&rc.getContext('2d'),rd=rc&&rctx.createImageData(n,n);
+  const k=(o.s||3)/8,at=(x,y)=>h[((y+n)%n)*n+((x+n)%n)];
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const a=at(x-1,y-1),b=at(x,y-1),c=at(x+1,y-1),d=at(x-1,y),f=at(x+1,y),g=at(x-1,y+1),hh=at(x,y+1),i2=at(x+1,y+1);
+    let nx=-((c+2*f+i2)-(a+2*d+g))*k,ny=((g+2*hh+i2)-(a+2*b+c))*k;const len=Math.hypot(nx,ny,1);
+    const j=(y*n+x)*4;
+    nd.data[j]=(nx/len*.5+.5)*255;nd.data[j+1]=(ny/len*.5+.5)*255;nd.data[j+2]=(1/len*.5+.5)*255;nd.data[j+3]=255;
+    if(rd){const v=(1+(o.rs-1)*h[y*n+x])*255;rd.data[j]=rd.data[j+1]=rd.data[j+2]=v;rd.data[j+3]=255;}
+  }
+  nctx.putImageData(nd,0,0);if(rd)rctx.putImageData(rd,0,0);
+  const out={n:nc,r:rc};reliefCache.set(canvas,out);return out;
+}
+function relieve(mat,canvas,rx,ry,o){
+  if(!o)return mat;
+  const r=reliefOf(canvas,o);
+  mat.normalMap=texFrom(r.n,rx,ry,true);
+  if(r.r){mat.roughnessMap=texFrom(r.r,rx,ry,true);}
+  return mat;
+}
+const RELIEF={
+  micro:{s:5},concreto:{s:5},ladrillo:{by:'sat',lo:.12,hi:.3,s:4},madera:{lo:.15,hi:.6,s:4},
+  grande:{lo:.6,hi:.8,s:3,rs:.45},metro:{lo:.7,hi:.85,s:3,rs:.45},
+  marmol_blanco:{lo:.55,hi:.8,s:2.5},cemento:{s:6},concreto_pulido:{s:2.5},gris_claro:{lo:.6,hi:.75,s:3},
+  floor_madera:{lo:.1,hi:.45,s:4},roble_oscuro:{lo:.03,hi:.25,s:4},
+  cesped:{s:8},arena:{s:6},pavimento:{s:6},cancha:{s:5},adoquin:{lo:.3,hi:.5,s:4},
+  ceil_madera:{lo:.15,hi:.45,s:4},ceil_concreto:{s:4}
+};
 
 /* ================= materiales ================= */
 const METALS={negro:{n:'Negro mate',c:0x17181a,m:.6,r:.5},cromo:{n:'Cromo',c:0xd2d6d9,m:1,r:.18},laton:{n:'Latón',c:0xb38a45,m:1,r:.32}};
@@ -521,11 +567,11 @@ function finishMat(spec,len,h){
   if(finishCache.has(key))return finishCache.get(key);
   let m;
   if(t==='pintura') m=new THREE.MeshStandardMaterial({color:lin(spec.c),roughness:.92});
-  else if(t==='micro') m=new THREE.MeshStandardMaterial({map:texFrom(TEX.micro.c,len/TEX.micro.s,h/TEX.micro.s),color:lin(spec.c||'#c9c6c0'),roughness:.85});
-  else if(t==='concreto') m=new THREE.MeshStandardMaterial({map:texFrom(TEX.concreto.c,len/TEX.concreto.s,h/TEX.concreto.s),color:lin(spec.c||'#ffffff'),roughness:.9});
-  else if(t==='ladrillo') m=new THREE.MeshStandardMaterial({map:texFrom(TEX.ladrillo.c,len/TEX.ladrillo.s,h/TEX.ladrillo.s),roughness:.95});
-  else if(t==='enchape'){const T=TEX[spec.p||'grande'];m=new THREE.MeshStandardMaterial({map:texFrom(T.c,len/T.s,h/T.s),color:lin(spec.c),roughness:.28});}
-  else if(t==='madera') m=new THREE.MeshStandardMaterial({map:texFrom(TEX.madera.c,len/TEX.madera.s,h/TEX.madera.s),color:lin(WOODS[state.wood].c),roughness:.6});
+  else if(t==='micro'){const T=TEX.micro,rx=len/T.s,ry=h/T.s;m=relieve(new THREE.MeshStandardMaterial({map:texFrom(T.c,rx,ry),color:lin(spec.c||'#c9c6c0'),roughness:.85}),T.c,rx,ry,RELIEF.micro);}
+  else if(t==='concreto'){const T=TEX.concreto,rx=len/T.s,ry=h/T.s;m=relieve(new THREE.MeshStandardMaterial({map:texFrom(T.c,rx,ry),color:lin(spec.c||'#ffffff'),roughness:.9}),T.c,rx,ry,RELIEF.concreto);}
+  else if(t==='ladrillo'){const T=TEX.ladrillo,rx=len/T.s,ry=h/T.s;m=relieve(new THREE.MeshStandardMaterial({map:texFrom(T.c,rx,ry),roughness:.95}),T.c,rx,ry,RELIEF.ladrillo);}
+  else if(t==='enchape'){const key=spec.p||'grande',T=TEX[key],rx=len/T.s,ry=h/T.s;m=relieve(new THREE.MeshStandardMaterial({map:texFrom(T.c,rx,ry),color:lin(spec.c),roughness:.62}),T.c,rx,ry,RELIEF[key]);}
+  else if(t==='madera'){const T=TEX.madera,rx=len/T.s,ry=h/T.s;m=relieve(new THREE.MeshStandardMaterial({map:texFrom(T.c,rx,ry),color:lin(WOODS[state.wood].c),roughness:.6}),T.c,rx,ry,RELIEF.madera);}
   finishCache.set(key,m);return m;
 }
 const floorCache=new Map();
@@ -539,11 +585,11 @@ const ceilCache=new Map();
 function ceilMat(kind,sx,sz){
   if(!CEILING_TEX[kind])return M.ceil;
   const key=kind+sx.toFixed(2)+'x'+sz.toFixed(2);
-  if(!ceilCache.has(key))ceilCache.set(key,new THREE.MeshStandardMaterial({map:texFrom(CEILING_TEX[kind],sx/1.2,sz/1.2),roughness:kind==='madera'?.7:.95}));
+  if(!ceilCache.has(key))ceilCache.set(key,relieve(new THREE.MeshStandardMaterial({map:texFrom(CEILING_TEX[kind],sx/1.2,sz/1.2),roughness:kind==='madera'?.7:.95}),CEILING_TEX[kind],sx/1.2,sz/1.2,RELIEF['ceil_'+kind]));
   return ceilCache.get(key);
 }
 function floorMat(k,sx,sz){const key=k+sx+'x'+sz;if(floorCache.has(key))return floorCache.get(key);
-  const F=FLOORS[k],map=texFrom(F.c,sx/1.2,sz/1.2);const m=new THREE.MeshStandardMaterial({map,bumpMap:map,bumpScale:.6,roughness:F.rough});floorCache.set(key,m);return m;}
+  const F=FLOORS[k],rx=sx/1.2,rz=sz/1.2;const m=relieve(new THREE.MeshStandardMaterial({map:texFrom(F.c,rx,rz),roughness:F.rough}),F.c,rx,rz,RELIEF[k==='madera'?'floor_madera':k]);floorCache.set(key,m);return m;}
 
 /* ================= estado ================= */
 const WALLS=[
