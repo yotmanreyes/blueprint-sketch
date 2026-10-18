@@ -118,7 +118,8 @@ Los pisos no se mueven arrastrándolos (así se puede girar la cámara sobre ell
 ## Aspecto fotorrealista
 
 - La barra inferior alterna *Plano* y *Fotorrealista* (`setLook`, preferencia en `localStorage`, no va en el plano). `applyLook` cambia, sin tocar los datos: fondo y entorno (un cielo generado con `PMREMGenerator`, uno brillante para el fondo y otro a la mitad para iluminar), niebla, luz del sol (cálida, 4096 px, más alta en `aimSun`), exposición, `near`/`far` de la cámara, el color de `M.struct` (yeso en vez de gris de plano), un suelo grande, y oculta rejilla, cotas y aristas.
-- Sin postprocesado (no SSAO): el render sigue siendo directo, para conservar el tone mapping y la sombra a demanda. *Guardar imagen* renderiza y descarga el lienzo.
+- Oclusión ambiental: en este aspecto y en pantallas grandes (`useAO`, no `lowPower`) `drawFrame()` renderiza con un `EffectComposer` (MSAA 4×, `GTAOPass`, `OutputPass` que aplica el tone mapping); en los demás casos el render es directo. Todo dibujo pasa por `drawFrame()`, también *Guardar imagen* y las miniaturas. El vidrio (`M.glass`, físico) usa transmisión solo aquí.
+- `lowPower` (≤900 px o puntero táctil) baja el pixel ratio a 1,5 y la sombra a 2048 px.
 
 ## Agentes de IA
 

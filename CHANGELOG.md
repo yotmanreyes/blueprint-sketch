@@ -2,6 +2,11 @@
 
 All notable changes to Blueprint Sketch. Versions follow [Semantic Versioning](https://semver.org).
 
+## 0.22.0 — 2026-10-18
+- The photorealistic look is more realistic: soft shadows where walls meet the floor, in corners and under furniture, smoother edges, and windows that reflect the sky and let you see through.
+- Phones and tablets keep the lighter rendering.
+- Under the hood: three.js was upgraded from r128 to r180.
+
 ## 0.21 — 2026-10-18
 - Smoother on phones and tablets: lighter shadows and a lower render resolution (0.21.4).
 - A loading screen shows while the editor starts, and says so if the 3D engine cannot be downloaded (0.21.3).
