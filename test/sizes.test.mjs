@@ -38,3 +38,10 @@ test('the catalogue and the editor agree on floors and styles', () => {
   const styles = [...page.matchAll(/^  ([a-z_]+):\{n:'[^']*',metal:/gm)].map(m => m[1]);
   assert.deepEqual(styles.sort(), Catalog.STYLES.map(s => s[0]).sort());
 });
+
+test('the version shown in the editor matches package.json', () => {
+  const page = fs.readFileSync(fileURLToPath(new URL('../src/editor-3d.html', import.meta.url)), 'utf8');
+  const { version } = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
+  const shown = [...page.matchAll(/<(?:span|small) class="ver"[^>]*>v([\d.]+)</g)].map(m => m[1]);
+  assert.deepEqual(shown, [version, version]);
+});
