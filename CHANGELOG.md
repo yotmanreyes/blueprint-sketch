@@ -2,6 +2,11 @@
 
 All notable changes to Blueprint Sketch. Versions follow [Semantic Versioning](https://semver.org).
 
+## 0.23.0 — 2026-10-18
+- The interface is now available in English as well as Spanish. It follows your browser language and can be switched from the version menu; plan names, room labels, PDF and DXF exports, the CSV of quantities and the assistant's replies follow the chosen language.
+- Numbers, dates and currency use the conventions of the chosen language.
+- The decorative plant is now called "Planta decorativa" in Spanish, to tell it apart from the top view button.
+
 ## 0.22.4 — 2026-10-18
 - Fixed: chairs had their backrest on the wrong side, so they faced away from tables and desks.
 

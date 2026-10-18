@@ -23,6 +23,7 @@ That house was built from an empty plan by calling the same tools an AI agent us
 ## What you can do
 
 - **Start from a ready-made plan.** A gallery of 30 templates opens with every new workspace: studios, lofts, apartments, cabins and houses (one with a garden and pool), an apartment building, a hotel and an office tower, offices, cafés, restaurants, a shop, a salon and a supermarket, a school, a library, a clinic and a church, a warehouse, a garage and a car park, a park, a playground, a pool club, a sports complex and a gym, or a blank grid. Each one is an ordinary plan to build on.
+- **Speaks Spanish and English.** The interface follows your browser and can be switched from the version menu; adding another language is one dictionary file ([how](CONTRIBUTING.md#translations)).
 - **Draw like a blueprint.** Start from an empty grid and add walls, rooms, doors and windows. Dimensions, wall outlines and room labels are drawn for you.
 - **A layout like a professional editor.** Modes on the top bar, drawing tools on the left, level and view switches on the bottom, panels on the right, and an on-canvas camera pad to move and turn the view. The *Perspectiva* menu lists every view: eight aerial angles by compass point and one view inside each room.
 - **AI agents.** An MCP server and an in-editor assistant let a model of your choice draw plans with the editor's own tools and rules.
