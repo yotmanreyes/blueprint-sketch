@@ -17,5 +17,10 @@
   },
   "dependencies": {
     "@vercel/blob": "^2.8.2"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yotmanreyes/blueprint-sketch.git"
   }
 }
