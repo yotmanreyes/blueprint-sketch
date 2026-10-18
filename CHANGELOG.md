@@ -2,6 +2,12 @@
 
 All notable changes to Blueprint Sketch. Versions follow [Semantic Versioning](https://semver.org).
 
+## 0.21.0 — 2026-10-18
+- The assistant answers with formatting: headings, lists, tables, code and links.
+- While the model works you see what it is doing, the step it is on and the elapsed time, and each step reads in plain language.
+- Every turn ends with a summary and a button to undo what the assistant did; a failed message can be retried.
+- The assistant can open in its own window next to the plan.
+
 ## 0.20.0 — 2026-10-18
 - Works on phones: the viewer fills the screen, tools float over it, the panel opens as a bottom sheet and the camera pad appears on demand.
 - Fixed: drawing with a finger or a pen no longer breaks when the browser refuses to capture the pointer (0.19.1).
