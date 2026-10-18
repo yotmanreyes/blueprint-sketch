@@ -2,6 +2,9 @@
 
 All notable changes to Blueprint Sketch. Versions follow [Semantic Versioning](https://semver.org).
 
+## 0.22.4 — 2026-10-18
+- Fixed: chairs had their backrest on the wrong side, so they faced away from tables and desks.
+
 ## 0.22.3 — 2026-10-18
 - Surfaces now have real relief: brick joints, tile and plank gaps, wood grain and concrete texture catch the light, and glossy tiles are rougher in the joints. Walls, floors and ceilings are covered.
 
