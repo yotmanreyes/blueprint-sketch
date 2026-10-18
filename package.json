@@ -1,6 +1,6 @@
 {
   "name": "blueprint-sketch",
-  "version": "0.18.1",
+  "version": "0.18.2",
   "private": true,
   "type": "module",
   "description": "Shared plans API for the remodeling editor. The editor itself is static and needs no build.",

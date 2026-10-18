@@ -179,7 +179,7 @@ aside .pane:not(:last-child){flex:1}
 .roomviews{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .readonly{--rail-w:0px;--rail-h:0px}
 .readonly #tools{display:none!important}
-.readonly #levels .edit,.readonly #undoBtn,.readonly #redoBtn,.readonly aside .pane:last-child,.readonly #modes button:not([data-v="navigate"]),.readonly #tools,.readonly #tabs button:not([data-t="planos"]):not([data-t="cantidades"]),.readonly #selbar,.readonly #empty{display:none!important}
+.readonly #verChip,.readonly #levels .edit,.readonly #undoBtn,.readonly #redoBtn,.readonly aside .pane:last-child,.readonly #modes button:not([data-v="navigate"]),.readonly #tools,.readonly #tabs button:not([data-t="planos"]):not([data-t="cantidades"]),.readonly #selbar,.readonly #empty{display:none!important}
 #levels button.edit{border-style:dashed}
 .aichat{display:grid;gap:8px;align-content:start;min-height:160px;max-height:46vh;overflow:auto;padding:2px}
 .aimsg{padding:8px 10px;border-radius:10px;font-size:.82rem;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -232,8 +232,24 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 .plan .rename{grid-column:1/-1;display:flex;gap:6px}
 .plan .rename input{flex:1;min-width:0}
 .vfilters{display:flex;gap:4px;flex-wrap:wrap}
+.verwrap{position:relative}
+#verChip{font-family:var(--mono);font-size:.7rem;font-weight:500}
+#verChip .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
+#verChip.pulse{animation:vpulse 1.1s ease-out 3}
+@keyframes vpulse{0%{box-shadow:0 0 0 0 rgba(208,138,60,.8)}100%{box-shadow:0 0 0 12px rgba(208,138,60,0)}}
+#verMenu{position:absolute;right:0;top:calc(100% + 8px);z-index:30;width:290px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;display:grid;gap:6px;box-shadow:0 12px 32px rgba(0,0,0,.5)}
+#verMenu[hidden]{display:none}
+#verMenu .info{display:grid;gap:2px;font-family:var(--mono);font-size:.68rem;color:var(--muted);padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:2px}
+#verMenu .info b{color:var(--ink);font-family:inherit;font-size:.78rem;font-weight:600}
+#verMenu .btn{width:100%;height:32px;justify-content:flex-start;font-size:.8rem}
+#verMenu .row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#snack{position:fixed;left:50%;bottom:48px;transform:translateX(-50%);z-index:40;display:flex;gap:10px;align-items:center;max-width:min(560px,92vw);padding:9px 12px;background:var(--panel);border:1px solid var(--accent);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.55);font-size:.8rem}
+#snack[hidden]{display:none}
+#snack .mono{font-family:var(--mono);font-size:.68rem;color:var(--muted)}
+@media(max-width:900px){#verChip .when{display:none}}
 </style>
 
+<div id="snack" role="status" aria-live="polite" hidden></div>
 <div class="wrap">
   <div id="view">
     <div id="empty" class="glass" hidden>
@@ -259,7 +275,14 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
       <button data-v="build" aria-pressed="true" title="Construir: selecciona, mueve y dibuja (2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 20V9l7-5 7 5v11M10 20v-6h4v6"/></svg><span class="lbl">Construir</span><kbd>2</kbd></button>
       <button data-v="sculpt" aria-pressed="false" title="Esculpir: estira con manijas (3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"/></svg><span class="lbl">Esculpir</span><kbd>3</kbd></button>
     </div>
-    <div class="actions"><button class="btn" id="undoBtn" aria-label="Deshacer" title="Deshacer (Ctrl/Cmd+Z)" disabled>↶</button><button class="btn" id="redoBtn" aria-label="Rehacer" title="Rehacer (Ctrl/Cmd+Shift+Z)" disabled>↷</button><button class="btn" id="tplBtn" title="Empezar un plano nuevo desde una plantilla">Plantillas</button><button class="btn" id="panelBtn" aria-expanded="true" title="Mostrar u ocultar el panel">Panel</button></div>
+    <div class="actions"><div class="verwrap"><button class="btn" id="verChip" aria-haspopup="menu" aria-expanded="false" title="Versión actual del plano: opciones para compartir, exportar y ver en pantalla completa"></button>
+      <div id="verMenu" role="menu" hidden>
+        <div class="info" id="verInfo"></div>
+        <button class="btn" role="menuitem" data-a="save">Guardar una versión ahora</button>
+        <button class="btn" role="menuitem" data-a="history">Ver el historial de versiones</button>
+        <button class="btn" role="menuitem" data-a="share">Compartir…</button>
+        <div class="row"><button class="btn" role="menuitem" data-a="json">Exportar .json</button><button class="btn" role="menuitem" data-a="pdf">Exportar PDF</button><button class="btn" role="menuitem" data-a="dxf">Exportar DXF</button><button class="btn" role="menuitem" data-a="full" id="verFull">Pantalla completa</button></div>
+      </div></div><button class="btn" id="undoBtn" aria-label="Deshacer" title="Deshacer (Ctrl/Cmd+Z)" disabled>↶</button><button class="btn" id="redoBtn" aria-label="Rehacer" title="Rehacer (Ctrl/Cmd+Shift+Z)" disabled>↷</button><button class="btn" id="tplBtn" title="Empezar un plano nuevo desde una plantilla">Plantillas</button><button class="btn" id="panelBtn" aria-expanded="true" title="Mostrar u ocultar el panel">Panel</button></div>
   </header>
 
   <nav id="tools" role="group" aria-label="Herramienta">
@@ -506,11 +529,12 @@ const planHistory=History.create();
 let restoring=false;
 planHistory.reset(state);
 const versions=Versions.create({getItem:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},setItem:(k,v)=>localStorage.setItem(k,v)});
+let chipTimer=null,chipAt=Date.now(),snackTimer=null;
 const versionKey=()=>REMOTE_ID?'r:'+REMOTE_ID:plans.active.id;
 const isBlankState=s=>Levels.list(s).every(l=>Layout.isEmpty(l.layout)&&!l.items.length);
 function addVersion(snapshot,kind,label){
   const added=versions.add(versionKey(),{state:snapshot,kind,label,thumb:REMOTE_ID?null:plans.active.thumb});
-  if(added&&tab==='versiones')renderVersiones();
+  if(added&&!added.error){if(tab==='versiones')renderVersiones();notifyVersion(added);}
   return added;
 }
 // a checkpoint of the plan as it was before the edit that just happened, at most one every few minutes
@@ -525,6 +549,7 @@ function save(){
     if(planHistory.record(state))checkpointIfDue(before);
     syncUndoUI();
   }
+  chipAt=Date.now();scheduleChip();
   if(REMOTE_ID){if(remote)remote.queueSave();return;}
   if(!plans.save(state))showToast('No se pudo guardar: el almacenamiento del navegador está lleno. Exporta el plano a un archivo.');
   clearTimeout(thumbTimer);thumbTimer=setTimeout(captureThumb,900);
@@ -1951,6 +1976,9 @@ function exportBlock(){
 function download(bytes,filename,type){
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes],{type}));a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
+const exportMeta=()=>({name:exportTitle(),date:new Date().toLocaleDateString('es',{day:'numeric',month:'long',year:'numeric'})});
+function exportPdf(){const r=Export.pdf(Drawing.build(state,LIB,levelToExport()),exportMeta(),exportOptions);download(r.bytes,slug(exportTitle())+'.pdf','application/pdf');}
+function exportDxf(){const r=Export.dxf(Drawing.build(state,LIB,levelToExport()),exportMeta(),exportOptions);download(r.bytes,slug(exportTitle())+'.dxf','application/dxf');}
 function wireExport(){
   const empty=planIsBlank();
   const info=()=>{
@@ -1962,9 +1990,8 @@ function wireExport(){
   $('exPaper').onchange=e=>{exportOptions.paper=e.target.value;info();};
   $('exScale').onchange=e=>{exportOptions.scale=e.target.value;info();};
   $('exPdf').disabled=$('exDxf').disabled=empty;
-  const meta=()=>({name:exportTitle(),date:new Date().toLocaleDateString('es',{day:'numeric',month:'long',year:'numeric'})});
-  $('exPdf').onclick=()=>{const r=Export.pdf(Drawing.build(state,LIB,levelToExport()),meta(),exportOptions);download(r.bytes,slug(exportTitle())+'.pdf','application/pdf');};
-  $('exDxf').onclick=()=>{const r=Export.dxf(Drawing.build(state,LIB,levelToExport()),meta(),exportOptions);download(r.bytes,slug(exportTitle())+'.dxf','application/dxf');};
+  $('exPdf').onclick=exportPdf;
+  $('exDxf').onclick=exportDxf;
   info();
 }
 
@@ -1972,7 +1999,7 @@ function wireExport(){
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let pendingDelete=null;
 
-function renderPlanTitle(){$('planTitle').textContent=REMOTE_ID?(remote?'Plano compartido: '+(remote.name||'…'):''):'Plano: '+plans.active.name;}
+function renderPlanTitle(){$('planTitle').textContent=REMOTE_ID?(remote?'Plano compartido: '+(remote.name||'…'):''):'Plano: '+plans.active.name;scheduleChip();}
 
 function captureThumb(){
   if(REMOTE_ID||camKey!=='planta')return;
@@ -2149,7 +2176,6 @@ function saveVersion(label){
   const added=addVersion(JSON.parse(JSON.stringify(state)),'named',label);
   if(added&&added.error)showToast(added.error==='full'?`Ya tienes ${Versions.MAX_NAMED} versiones guardadas: borra alguna.`:'No se pudo guardar: el almacenamiento del navegador está lleno.');
   else if(!added)showToast('Ya hay un punto igual a este plano.');
-  else showToast('Versión guardada.');
   return added;
 }
 function restoreVersion(id){
@@ -2222,6 +2248,70 @@ function renderVersiones(){
     renderVersiones();
   };
 }
+
+/* ---- versión en la barra superior ---- */
+const fmtClock=t=>new Date(t).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+const openTab=name=>{document.querySelector('.wrap').classList.remove('nopanel');$('panelBtn').setAttribute('aria-expanded','true');$('tabs').querySelector(`[data-t="${name}"]`).click();};
+const currentHash=()=>Versions.sha256(JSON.stringify(state));
+function scheduleChip(){clearTimeout(chipTimer);chipTimer=setTimeout(renderVersionChip,250);}
+function renderVersionChip(){
+  if(REMOTE_ID&&!remote)return;
+  const hash=currentHash();
+  $('verChip').innerHTML=`<span class="dot"></span><span>#${hash.slice(0,8)}</span><span class="when">· ${fmtClock(chipAt)}</span>`;
+  $('verChip').dataset.hash=hash;
+  if(!$('verMenu').hidden)renderVersionMenu();
+}
+function renderVersionMenu(){
+  const hash=currentHash(),list=versions.list(versionKey()),same=list.find(v=>v.hash===hash),lastAuto=list.find(v=>v.kind==='auto');
+  $('verInfo').innerHTML=`<b>Versión #${esc(hash.slice(0,8))}</b>
+    <span>Última modificación · ${esc(fmtStamp(chipAt))}</span>
+    <span>${same?`Coincide con «${esc(same.label)}»`:'Con cambios desde el último punto guardado'}</span>
+    <span>${lastAuto?`Último punto automático · ${esc(fmtStamp(lastAuto.at))} · #${esc(lastAuto.hash.slice(0,8))}`:'Aún sin puntos automáticos'}</span>`;
+  const blank=planIsBlank(),menu=$('verMenu');
+  menu.querySelector('[data-a="pdf"]').disabled=menu.querySelector('[data-a="dxf"]').disabled=blank;
+  menu.querySelector('[data-a="share"]').hidden=!!REMOTE_ID&&!(remote&&remote.role==='owner');
+  $('verFull').textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';
+}
+function setVersionMenu(open){
+  $('verMenu').hidden=!open;$('verChip').setAttribute('aria-expanded',open);
+  if(open)renderVersionMenu();
+}
+function planFileText(){
+  if(!REMOTE_ID)return exportPlanFile(plans.active.id);
+  return JSON.stringify({app:'blueprint-sketch',version:2,name:remote.name,state,versions:versions.exportFor(versionKey())},null,1);
+}
+function toggleFullscreen(){
+  if(document.fullscreenElement)document.exitFullscreen();
+  else if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>showToast('El navegador no permitió la pantalla completa.'));
+  else showToast('Este navegador no tiene pantalla completa.');
+}
+function notifyVersion(v){
+  const auto=v.kind==='auto';
+  $('snack').innerHTML=`<span><b>${auto?'Punto automático guardado':'Versión guardada'}</b><br><span class="mono">${esc(v.label)} · #${esc(v.hash.slice(0,8))} · ${esc(fmtStamp(v.at))}</span></span><button class="btn" data-a="see">Ver historial</button><button class="btn" data-a="close" aria-label="Cerrar aviso">✕</button>`;
+  $('snack').hidden=false;
+  $('verChip').classList.remove('pulse');void $('verChip').offsetWidth;$('verChip').classList.add('pulse');
+  clearTimeout(snackTimer);snackTimer=setTimeout(()=>{$('snack').hidden=true;},8000);
+}
+$('snack').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.a==='see')openTab('versiones');$('snack').hidden=true;});
+$('verChip').onclick=e=>{e.stopPropagation();setVersionMenu($('verMenu').hidden);};
+document.addEventListener('click',e=>{if(!$('verMenu').hidden&&!e.target.closest('.verwrap'))setVersionMenu(false);});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('verMenu').hidden){setVersionMenu(false);$('verChip').focus();}});
+document.addEventListener('fullscreenchange',()=>{if(!$('verMenu').hidden)renderVersionMenu();});
+$('verMenu').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b||b.disabled)return;
+  const actions={
+    save:()=>{if(!isReadOnly())saveVersion(`Versión ${fmtClock(Date.now())}`);},
+    history:()=>openTab('versiones'),
+    share:()=>{
+      if(REMOTE_ID){openTab('planos');return;}
+      pendingShare=plans.active.id;pendingDelete=null;openTab('planos');renderPlanos();
+    },
+    json:()=>download(new TextEncoder().encode(planFileText()),slug(currentPlanName())+'.json','application/json'),
+    pdf:exportPdf,dxf:exportDxf,full:toggleFullscreen
+  };
+  setVersionMenu(false);
+  actions[b.dataset.a]();
+});
 
 /* ================= plano compartido (ruta /p/<id>) ================= */
 let syncStatus='saved',createdLink=null,confirmRemoteDelete=false,remoteFailed=false;
