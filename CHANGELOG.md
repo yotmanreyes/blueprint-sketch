@@ -2,6 +2,9 @@
 
 All notable changes to Blueprint Sketch. Versions follow [Semantic Versioning](https://semver.org).
 
+## 0.22.3 — 2026-10-18
+- Surfaces now have real relief: brick joints, tile and plank gaps, wood grain and concrete texture catch the light, and glossy tiles are rougher in the joints. Walls, floors and ceilings are covered.
+
 ## 0.22.2 — 2026-10-18
 - The in-editor assistant only answers about the project (plans, remodeling, furniture, quantities and how to use the editor) and politely declines anything else.
 

@@ -117,6 +117,7 @@ Los pisos no se mueven arrastrándolos (así se puede girar la cámara sobre ell
 
 ## Aspecto fotorrealista
 
+- Relieve (`reliefOf`, `relieve`, tabla `RELIEF`): de cada textura de color se deriva un mapa de alturas (brillo, o saturación en el ladrillo), con umbrales `lo`/`hi` por material, y de él un mapa de normales y, si hay `rs`, uno de rugosidad (juntas más rugosas que la superficie). Se aplica en acabados de pared, pisos y cielos; `texFrom` reutiliza un solo lienzo y textura base por lienzo, y solo cambia la repetición. Un material nuevo con textura necesita su entrada en `RELIEF` (o ninguna si es liso).
 - La barra inferior alterna *Plano* y *Fotorrealista* (`setLook`, preferencia en `localStorage`, no va en el plano). `applyLook` cambia, sin tocar los datos: fondo y entorno (un cielo generado con `PMREMGenerator`, uno brillante para el fondo y otro a la mitad para iluminar), niebla, luz del sol (cálida, 4096 px, más alta en `aimSun`), exposición, `near`/`far` de la cámara, el color de `M.struct` (yeso en vez de gris de plano), un suelo grande, y oculta rejilla, cotas y aristas.
 - Oclusión ambiental: en este aspecto y en pantallas grandes (`useAO`, no `lowPower`) `drawFrame()` renderiza con un `EffectComposer` (MSAA 4×, `GTAOPass`, `OutputPass` que aplica el tone mapping); en los demás casos el render es directo. Todo dibujo pasa por `drawFrame()`, también *Guardar imagen* y las miniaturas. El vidrio (`M.glass`, físico) usa transmisión solo aquí.
 - `lowPower` (≤900 px o puntero táctil) baja el pixel ratio a 1,5 y la sombra a 2048 px.
