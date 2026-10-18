@@ -118,7 +118,7 @@ const Engine=(()=>{
     function startDrag(info,e){
       drag={...info,moved:false};
       controls.enabled=false;
-      dom.setPointerCapture(e.pointerId);
+      try{dom.setPointerCapture(e.pointerId);}catch(err){}
     }
 
     host.addEventListener('pointerdown',e=>{
