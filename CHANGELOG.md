@@ -3,6 +3,7 @@
 All notable changes to Blueprint Sketch. Versions follow [Semantic Versioning](https://semver.org).
 
 ## 0.21 — 2026-10-18
+- A loading screen shows while the editor starts, and says so if the 3D engine cannot be downloaded (0.21.3).
 - Saved plans in the Plans tab show their full name, with the buttons on a second line (0.21.1).
 - The assistant writes its answer as the model produces it instead of waiting for the whole reply (0.21.2).
 
