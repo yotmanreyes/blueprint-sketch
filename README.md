@@ -4,7 +4,21 @@ Sketch a floor plan, furnish it in 3D, and share it with a link.
 
 Blueprint Sketch is a small, dependency-light toolkit for **prototyping remodeling and interior layouts quickly**. Draw rooms, drop in doors, windows and furniture, look around in 3D, and send the plan to someone else with exactly the permissions you choose. There is no build step: the editor is plain HTML and JavaScript.
 
-**Try it:** https://blueprint-sketch.vercel.app
+**Try it:** https://blueprint-sketch.vercel.app (no sign-up)
+
+[![License: MIT](https://img.shields.io/github/license/yotmanreyes/blueprint-sketch)](LICENSE)
+[![CI](https://github.com/yotmanreyes/blueprint-sketch/actions/workflows/ci.yml/badge.svg)](https://github.com/yotmanreyes/blueprint-sketch/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/yotmanreyes/blueprint-sketch)](https://github.com/yotmanreyes/blueprint-sketch/releases)
+
+![A two-storey house built from an empty plan, step by step, with the exact tool call shown on each step](media/demo.gif)
+
+That house was built from an empty plan by calling the same tools an AI agent uses, one call per step ([full video](media/demo.mp4)). You can draw by hand, start from one of 30 templates, or ask the built-in assistant or any MCP client to do it for you.
+
+| Photorealistic, with ambient occlusion and surface relief | Dimensioned plan | Sketch look |
+|---|---|---|
+| ![Interior in the photorealistic look](media/interior.jpg) | ![Dimensioned floor plan](media/plan.jpg) | ![Two-storey house in the sketch look](media/sketch.jpg) |
+
+**Why it is different:** no sign-up, no build step, plans shared by link with reader/editor/owner roles, and an agent-ready model: the same ~30 tools power the in-editor assistant and an [MCP server](#work-with-ai-agents-mcp), so any AI client can design, check and quantify a plan.
 
 ## What you can do
 
@@ -205,7 +219,7 @@ Blueprint Sketch is for **schematic design**: quick layouts, conversations with 
 
 ## Contributing
 
-Issues and pull requests are welcome. Keep the editor build-free (plain scripts, no bundler), follow [Conventional Commits](https://www.conventionalcommits.org/), and run `npm test` before opening a pull request.
+Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Keep the editor build-free (plain scripts, no bundler), follow [Conventional Commits](https://www.conventionalcommits.org/), and run `npm test` before opening a pull request.
 
 ## License
 
