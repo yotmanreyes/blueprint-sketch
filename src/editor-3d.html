@@ -500,7 +500,7 @@ const M={
   green:new THREE.MeshStandardMaterial({color:0x3f6b3a,roughness:.9}),
   pot:new THREE.MeshStandardMaterial({color:0x2d2b29,roughness:.8}),
   screen:new THREE.MeshStandardMaterial({color:0x0a0a0b,roughness:.15,metalness:.3}),
-  glass:new THREE.MeshStandardMaterial({color:0xcfe3e6,roughness:.05,metalness:.1,transparent:true,opacity:.2,depthWrite:false}),
+  glass:new THREE.MeshPhysicalMaterial({color:0xcfe3e6,roughness:.05,metalness:.1,transparent:true,opacity:.2,depthWrite:false}),
   mirror:new THREE.MeshStandardMaterial({color:0xa4adb2,roughness:.06,metalness:.95}),
   tray:new THREE.MeshStandardMaterial({color:0x3d4044,roughness:.5}),
   ghost:new THREE.MeshStandardMaterial({color:0xdde7f3,roughness:1}),
@@ -657,6 +657,22 @@ const scene=new THREE.Scene();scene.background=new THREE.Color(0x0b1620);
 const camera=new THREE.PerspectiveCamera(70,1,.05,60);
 const controls=new THREE.OrbitControls(camera,renderer.domElement);
 controls.enableDamping=true;controls.addEventListener('change',()=>need=true);
+/* Ambient occlusion: rendered through a composer (4x MSAA, GTAO, tone mapping on output) only in the photoreal look on large screens. */
+let composer=null,aoPass=null,useAO=false;
+function buildComposer(){
+  const FX=THREE_FX,size=renderer.getSize(new THREE.Vector2()),ratio=renderer.getPixelRatio();
+  const target=new THREE.WebGLRenderTarget(size.x*ratio,size.y*ratio,{type:THREE.HalfFloatType,samples:4});
+  composer=new FX.EffectComposer(renderer,target);composer.setPixelRatio(ratio);composer.setSize(size.x,size.y);
+  composer.addPass(new FX.RenderPass(scene,camera));
+  aoPass=new FX.GTAOPass(scene,camera,size.x,size.y);
+  aoPass.updateGtaoMaterial({radius:.7,distanceExponent:1.5,thickness:1,scale:1,samples:16});
+  aoPass.blendIntensity=1.2;
+  composer.addPass(aoPass);composer.addPass(new FX.OutputPass());
+}
+function drawFrame(){
+  if(useAO){if(!composer)buildComposer();composer.render();}
+  else renderer.render(scene,camera);
+}
 const hemi=new THREE.HemisphereLight(0xfff1df,0x3a3836,.45*LIGHT_SCALE);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xdfeaff,1.3*LIGHT_SCALE);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
 Object.assign(sun.shadow.camera,{left:-7,right:7,top:7,bottom:-7,near:.5,far:22});sun.shadow.bias=-.0005;scene.add(sun,sun.target);
@@ -1498,6 +1514,9 @@ function applyLook(){
   M.struct.color.copy(lin(photoreal?'#d8d4cc':sketch?'#f4f4f2':'#3a3c3f'));M.struct.roughness=photoreal?.9:1;
   edgeMat.visible=!photoreal;edgeMat.color.set(sketch?0x151515:0xcfe3f5);edgeMat.opacity=sketch?1:.55;
   if(mainGrid)mainGrid.visible=!photoreal&&!sketch;
+  useAO=photoreal&&!lowPower.matches;
+  Object.assign(M.glass,photoreal?{transmission:.95,thickness:.02,ior:1.45,roughness:.03,opacity:1,transparent:false,depthWrite:true}:{transmission:0,roughness:.05,opacity:.2,transparent:true,depthWrite:false});
+  M.glass.needsUpdate=true;
   groundPlane.visible=photoreal;aimSun();placeGroundGrid();topHide();
   $('look').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===(photoreal?'photo':sketch?'sketch':'draft')));
   need=true;
@@ -1510,7 +1529,7 @@ function setLook(look){
 }
 $('look').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setLook(b.dataset.v);});
 $('shotBtn').onclick=()=>{
-  engine.update();renderer.render(scene,camera);
+  engine.update();drawFrame();
   renderer.domElement.toBlob(blob=>{if(blob)download(blob,slug(currentPlanName())+'.png','image/png');},'image/png');
 };
 
@@ -2147,7 +2166,7 @@ function renderPlanTitle(){$('planTitle').textContent=REMOTE_ID?(remote?'Plano c
 
 function captureThumb(){
   if(REMOTE_ID||camKey!=='planta')return;
-  engine.update();renderer.render(scene,camera);
+  engine.update();drawFrame();
   const src=renderer.domElement,c=document.createElement('canvas');c.width=240;c.height=150;
   const v=viewFrame(),c0=new THREE.Vector3(v.cx,0,v.cz).project(camera),sh=src.height,sw=Math.min(src.width,sh*1.6),
     sx=Math.max(0,Math.min(src.width-sw,(c0.x+1)/2*src.width-sw/2));
@@ -2623,7 +2642,7 @@ function renderShared(){
 }
 
 /* ================= arranque ================= */
-function resize(){const r=view.getBoundingClientRect();renderer.setPixelRatio(pixelRatio());renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();need=true;}
+function resize(){const r=view.getBoundingClientRect();renderer.setPixelRatio(pixelRatio());renderer.setSize(r.width,r.height,false);if(composer){composer.setPixelRatio(pixelRatio());composer.setSize(r.width,r.height);}camera.aspect=r.width/r.height;camera.updateProjectionMatrix();need=true;}
 new ResizeObserver(resize).observe(view);
 lowPower.addEventListener('change',()=>{applyLook();resize();});
 applyMetalWood();buildGrid();buildStruct();buildItems();renderLevels();renderStyle();
@@ -2686,7 +2705,7 @@ function stepCamera(dt){
 }
 let lastFrame=performance.now();
 (function loop(){requestAnimationFrame(loop);const now=performance.now(),dt=Math.min(.1,(now-lastFrame)/1000);lastFrame=now;
-  if(stepCamera(dt))need=true;if(controls.update())need=true;if(need){engine.update();renderer.render(scene,camera);need=false;}})();
+  if(stepCamera(dt))need=true;if(controls.update())need=true;if(need){engine.update();drawFrame();need=false;}})();
 setTimeout(()=>{const boot=document.getElementById('boot');boot.classList.add('done');setTimeout(()=>boot.remove(),400);},0);
 </script>
 <script type="module" src="boot.js"></script>
