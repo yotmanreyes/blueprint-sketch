@@ -1814,7 +1814,8 @@ async function aiSend(text){
   ai.busy=true;ai.draft='';ai.controller=new AbortController();engine.setLocked(true);
   ai.status={startedAt:Date.now(),phase:'send',step:0,maxSteps:AiClient.MAX_STEPS,tool:null};
   renderAiLog();syncAiButtons();
-  let changed=false,steps=0,result=null;
+  let changed=false,steps=0,result=null,live=null,paintQueued=false;
+  const paintSoon=()=>{if(paintQueued)return;paintQueued=true;requestAnimationFrame(()=>{paintQueued=false;renderAiLog();});};
   try{
     result=await AiClient.run({provider:s.provider,apiKey:ai.keys[s.provider]||'',model:s.models[s.provider]||info.model,baseUrl:s.bases[s.provider]||info.base,
       system:aiSystem(),tools:Agent.definitions(),transcript:ai.transcript,signal:ai.controller.signal,
@@ -1825,9 +1826,13 @@ async function aiSend(text){
           return out;
         }catch(e){return{ok:false,error:`unexpected error: ${e.message}`};}
       },
-      onStatus:status=>{Object.assign(ai.status,{phase:status.phase,step:status.step,maxSteps:status.maxSteps});renderAiLog();},
+      onStatus:status=>{Object.assign(ai.status,{phase:status.phase,step:status.step,maxSteps:status.maxSteps});if(status.phase==='request')live=null;renderAiLog();},
+      onText:text=>{
+        if(!live){live={kind:'assistant',text};ai.log.push(live);}else live.text=text;
+        paintSoon();
+      },
       onEvent:e=>{
-        if(e.type==='text')ai.log.push({kind:'assistant',text:e.text});
+        if(e.type==='text'){if(live){live.text=e.text;live=null;}else ai.log.push({kind:'assistant',text:e.text});}
         else if(e.type==='call'){steps++;ai.log.push({kind:'step',name:e.name,args:e.args,done:false});Object.assign(ai.status,{phase:'tool',tool:{name:e.name,args:e.args}});}
         else{const step=[...ai.log].reverse().find(m=>m.kind==='step'&&!m.done);if(step){step.done=true;step.failed=!e.ok;if(!e.ok)step.error=e.summary;}}
         renderAiLog();

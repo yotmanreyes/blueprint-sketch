@@ -121,3 +121,63 @@ test('a huge tool result is cut before it goes back to the model', async () => {
   await AiClient.run({ ...base, provider: 'openai', transcript: [{ role: 'user', text: 'x' }], execute: async () => ({ ok: true, result: { big: 'x'.repeat(50000) } }), fetchImpl });
   assert.ok(seen[1].body.messages.at(-1).content.length < 21000);
 });
+
+// a fetch that answers with server-sent events, split in odd places to prove chunk boundaries do not matter
+const streamed = turns => {
+  const seen = [];
+  const fetchImpl = async (url, init) => {
+    seen.push({ url, body: JSON.parse(init.body) });
+    const payload = turns.shift().map(e => `data: ${typeof e === 'string' ? e : JSON.stringify(e)}\n\n`).join('');
+    const bytes = new TextEncoder().encode(payload), cut = Math.floor(bytes.length / 3);
+    const body = new ReadableStream({ start(c) { c.enqueue(bytes.slice(0, cut)); c.enqueue(bytes.slice(cut, cut * 2 + 1)); c.enqueue(bytes.slice(cut * 2 + 1)); c.close(); } });
+    return { ok: true, status: 200, headers: new Headers({ 'content-type': 'text/event-stream' }), body };
+  };
+  return { fetchImpl, seen };
+};
+
+test('OpenAI stream: text arrives piece by piece and tool arguments are joined', async () => {
+  const { fetchImpl, seen } = streamed([
+    [{ choices: [{ delta: { content: 'Voy a ' } }] }, { choices: [{ delta: { content: 'dibujar.', tool_calls: [{ index: 0, id: 'c1', function: { name: 'add_room', arguments: '{"x0":' } }] } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '2,"name":"Sala"}' } }] } }] }, '[DONE]'],
+    [{ choices: [{ delta: { content: 'Listo' } }] }, '[DONE]']
+  ]);
+  const calls = [], pieces = [];
+  const result = await AiClient.run({ ...base, provider: 'openai', transcript: [{ role: 'user', text: 'x' }], execute: execute(calls), onText: t => pieces.push(t), fetchImpl });
+  assert.equal(seen[0].body.stream, true);
+  assert.deepEqual(pieces, ['Voy a ', 'Voy a dibujar.', 'Listo']);
+  assert.deepEqual(calls, [['add_room', { x0: 2, name: 'Sala' }]]);
+  assert.equal(result.stopped, 'done');
+});
+
+test('Anthropic stream: text blocks and tool input are rebuilt', async () => {
+  const { fetchImpl, seen } = streamed([
+    [{ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }, { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Hola' } },
+      { type: 'content_block_start', index: 1, content_block: { type: 'tool_use', id: 't1', name: 'get_plan' } }, { type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: '' } }, { type: 'message_stop' }],
+    [{ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }, { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Fin' } }, { type: 'message_stop' }]
+  ]);
+  const calls = [], pieces = [];
+  await AiClient.run({ ...base, provider: 'anthropic', transcript: [{ role: 'user', text: 'x' }], execute: execute(calls), onText: t => pieces.push(t), fetchImpl });
+  assert.equal(seen[0].body.stream, true);
+  assert.deepEqual(pieces, ['Hola', 'Fin']);
+  assert.deepEqual(calls, [['get_plan', {}]]);
+});
+
+test('Gemini stream: uses the streaming endpoint and keeps the raw parts', async () => {
+  const { fetchImpl, seen } = streamed([
+    [{ candidates: [{ content: { parts: [{ text: 'Dibujo ' }] } }] }, { candidates: [{ content: { parts: [{ text: 'ya.' }, { functionCall: { name: 'get_plan', args: {} } }] } }] }],
+    [{ candidates: [{ content: { parts: [{ text: 'Hecho' }] } }] }]
+  ]);
+  const transcript = [{ role: 'user', text: 'x' }], pieces = [];
+  await AiClient.run({ ...base, provider: 'gemini', transcript, execute: execute([]), onText: t => pieces.push(t), fetchImpl });
+  assert.match(seen[0].url, /:streamGenerateContent\?alt=sse$/);
+  assert.deepEqual(pieces, ['Dibujo ', 'Dibujo ya.', 'Hecho']);
+  assert.equal(transcript[1].raw.parts.length, 3);
+});
+
+test('stream: a server that ignores streaming still works through the normal path', async () => {
+  const { fetchImpl } = scripted([{ body: { choices: [{ message: { content: 'Hola' } }] } }]);
+  const pieces = [];
+  const result = await AiClient.run({ ...base, provider: 'openai', transcript: [{ role: 'user', text: 'x' }], execute: execute([]), onText: t => pieces.push(t), fetchImpl: async (u, i) => ({ ...(await fetchImpl(u, i)), headers: new Headers({ 'content-type': 'application/json' }) }) });
+  assert.equal(result.stopped, 'done');
+  assert.deepEqual(pieces, []);
+});

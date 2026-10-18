@@ -22,7 +22,7 @@ const AiClient=(()=>{
 
   /* ---------- OpenAI chat completions ---------- */
   const openai={
-    request({system,tools,transcript,model,apiKey,baseUrl}){
+    request({system,tools,transcript,model,apiKey,baseUrl,stream}){
       const messages=[{role:'system',content:system}];
       for(const m of transcript){
         if(m.role==='user')messages.push({role:'user',content:m.text});
@@ -30,18 +30,33 @@ const AiClient=(()=>{
         else for(const r of m.results)messages.push({role:'tool',tool_call_id:r.id,content:r.content});
       }
       return{url:`${baseUrl.replace(/\/$/,'')}/chat/completions`,headers:{'content-type':'application/json',...(apiKey?{authorization:`Bearer ${apiKey}`}:{})},
-        body:{model,messages,tools:tools.map(t=>({type:'function',function:{name:t.name,description:t.description,parameters:t.parameters}})),tool_choice:'auto'}};
+        body:{model,messages,tools:tools.map(t=>({type:'function',function:{name:t.name,description:t.description,parameters:t.parameters}})),tool_choice:'auto',...(stream?{stream:true}:{})}};
     },
     parse(json){
       const message=json.choices&&json.choices[0]&&json.choices[0].message;
       if(!message)throw new AiError(0,'the answer had no message');
       return{text:message.content||'',calls:(message.tool_calls||[]).map(c=>({id:c.id,name:c.function.name,args:parseArgs(c.function.arguments)}))};
+    },
+    stream:{
+      start:()=>({text:'',calls:[]}),
+      feed(acc,json,emit){
+        const delta=json.choices&&json.choices[0]&&json.choices[0].delta;
+        if(!delta)return;
+        if(delta.content){acc.text+=delta.content;emit(acc.text);}
+        for(const c of delta.tool_calls||[]){
+          const call=acc.calls[c.index||0]||(acc.calls[c.index||0]={id:'',name:'',raw:''});
+          if(c.id)call.id=c.id;
+          if(c.function&&c.function.name)call.name+=c.function.name;
+          if(c.function&&c.function.arguments)call.raw+=c.function.arguments;
+        }
+      },
+      finish:acc=>({text:acc.text,calls:acc.calls.filter(Boolean).map((c,i)=>({id:c.id||`${c.name}-${i}`,name:c.name,args:parseArgs(c.raw)}))})
     }
   };
 
   /* ---------- Anthropic messages ---------- */
   const anthropic={
-    request({system,tools,transcript,model,apiKey,baseUrl}){
+    request({system,tools,transcript,model,apiKey,baseUrl,stream}){
       const messages=[];
       for(const m of transcript){
         if(m.role==='user')messages.push({role:'user',content:m.text});
@@ -50,12 +65,26 @@ const AiClient=(()=>{
       }
       return{url:`${baseUrl.replace(/\/$/,'')}/v1/messages`,
         headers:{'content-type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body:{model,max_tokens:4096,system,messages,tools:tools.map(t=>({name:t.name,description:t.description,input_schema:t.parameters}))}};
+        body:{model,max_tokens:4096,system,messages,tools:tools.map(t=>({name:t.name,description:t.description,input_schema:t.parameters})),...(stream?{stream:true}:{})}};
     },
     parse(json){
       if(!Array.isArray(json.content))throw new AiError(0,'the answer had no content');
       return{text:json.content.filter(b=>b.type==='text').map(b=>b.text).join('\n'),
         calls:json.content.filter(b=>b.type==='tool_use').map(b=>({id:b.id,name:b.name,args:b.input||{}}))};
+    },
+    stream:{
+      start:()=>({blocks:[]}),
+      feed(acc,json,emit){
+        if(json.type==='error')throw new AiError(0,json.error&&json.error.message||'the stream failed');
+        const i=json.index;
+        if(json.type==='content_block_start')acc.blocks[i]=json.content_block.type==='tool_use'?{tool:true,id:json.content_block.id,name:json.content_block.name,raw:''}:{text:json.content_block.text||''};
+        else if(json.type==='content_block_delta'&&acc.blocks[i]){
+          if(json.delta.type==='text_delta'){acc.blocks[i].text+=json.delta.text;emit(acc.blocks.filter(b=>b&&!b.tool).map(b=>b.text).join('\n'));}
+          else if(json.delta.type==='input_json_delta')acc.blocks[i].raw+=json.delta.partial_json;
+        }
+      },
+      finish:acc=>({text:acc.blocks.filter(b=>b&&!b.tool).map(b=>b.text).join('\n'),
+        calls:acc.blocks.filter(b=>b&&b.tool).map(b=>({id:b.id,name:b.name,args:parseArgs(b.raw)}))})
     }
   };
 
@@ -70,7 +99,7 @@ const AiClient=(()=>{
     return out;
   }
   const gemini={
-    request({system,tools,transcript,model,apiKey,baseUrl}){
+    request({system,tools,transcript,model,apiKey,baseUrl,stream}){
       const contents=[];
       for(const m of transcript){
         if(m.role==='user')contents.push({role:'user',parts:[{text:m.text}]});
@@ -78,7 +107,7 @@ const AiClient=(()=>{
         else contents.push({role:'user',parts:m.results.map(r=>({functionResponse:{name:r.name,response:{result:r.content}}}))});
       }
       const declarations=tools.map(t=>({name:t.name,description:t.description,...(t.parameters&&t.parameters.properties&&Object.keys(t.parameters.properties).length?{parameters:geminiSchema(t.parameters)}:{})}));
-      return{url:`${baseUrl.replace(/\/$/,'')}/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      return{url:`${baseUrl.replace(/\/$/,'')}/v1beta/models/${encodeURIComponent(model)}:${stream?'streamGenerateContent?alt=sse':'generateContent'}`,
         headers:{'content-type':'application/json','x-goog-api-key':apiKey},
         body:{systemInstruction:{parts:[{text:system}]},contents,tools:[{functionDeclarations:declarations}]}};
     },
@@ -87,6 +116,22 @@ const AiClient=(()=>{
       if(!content||!Array.isArray(content.parts))throw new AiError(0,json.promptFeedback&&json.promptFeedback.blockReason?`blocked: ${json.promptFeedback.blockReason}`:'the answer had no content');
       const calls=content.parts.filter(p=>p.functionCall).map((p,i)=>({id:`${p.functionCall.name}-${i}`,name:p.functionCall.name,args:p.functionCall.args||{}}));
       return{text:content.parts.filter(p=>typeof p.text==='string'&&!p.thought).map(p=>p.text).join(''),calls,raw:content};
+    },
+    stream:{
+      start:()=>({parts:[]}),
+      feed(acc,json,emit){
+        const content=json.candidates&&json.candidates[0]&&json.candidates[0].content;
+        if(!content||!Array.isArray(content.parts)){
+          if(json.promptFeedback&&json.promptFeedback.blockReason)throw new AiError(0,`blocked: ${json.promptFeedback.blockReason}`);
+          return;
+        }
+        acc.parts.push(...content.parts);
+        emit(acc.parts.filter(p=>typeof p.text==='string'&&!p.thought).map(p=>p.text).join(''));
+      },
+      finish(acc){
+        if(!acc.parts.length)throw new AiError(0,'the answer had no content');
+        return gemini.parse({candidates:[{content:{parts:acc.parts}}]});
+      }
     }
   };
 
@@ -101,10 +146,31 @@ const AiClient=(()=>{
     return new AiError(response.status,message);
   }
 
+  // calls onData with each parsed `data:` payload of a server-sent-events body
+  async function readEvents(response,onData){
+    const reader=response.body.getReader(),decoder=new TextDecoder();
+    let buffer='';
+    const flush=block=>{
+      const data=block.split('\n').filter(l=>l.startsWith('data:')).map(l=>l.slice(5).trim()).join('');
+      if(!data||data==='[DONE]')return;
+      let json;
+      try{json=JSON.parse(data);}catch(e){return;}
+      onData(json);
+    };
+    for(;;){
+      const{done,value}=await reader.read();
+      if(done)break;
+      buffer+=decoder.decode(value,{stream:true}).replace(/\r\n/g,'\n');
+      let end;
+      while((end=buffer.indexOf('\n\n'))>=0){flush(buffer.slice(0,end));buffer=buffer.slice(end+2);}
+    }
+    if(buffer.trim())flush(buffer);
+  }
+
   const clip=text=>text.length>MAX_RESULT_CHARS?text.slice(0,MAX_RESULT_CHARS)+'… (cut)':text;
 
   // one conversation turn: the model may call tools several times before it answers
-  async function run({provider,apiKey,model,baseUrl,system,tools,transcript,execute,onEvent=()=>{},onStatus=()=>{},signal,maxSteps=MAX_STEPS,fetchImpl=globalThis.fetch}){
+  async function run({provider,apiKey,model,baseUrl,system,tools,transcript,execute,onEvent=()=>{},onStatus=()=>{},onText=null,signal,maxSteps=MAX_STEPS,fetchImpl=globalThis.fetch}){
     const adapter=ADAPTERS[provider],info=PROVIDERS[provider];
     if(!adapter)throw new AiError(0,`unknown provider "${provider}"`);
     if(!model)throw new AiError(0,'choose a model');
@@ -112,7 +178,7 @@ const AiClient=(()=>{
     const base=baseUrl||info.base;
     for(let step=1;step<=maxSteps;step++){
       if(signal&&signal.aborted)return{stopped:'aborted',steps:step-1};
-      const{url,headers,body}=adapter.request({system,tools,transcript,model,apiKey,baseUrl:base});
+      const{url,headers,body}=adapter.request({system,tools,transcript,model,apiKey,baseUrl:base,stream:!!onText});
       let response;
       onStatus({phase:'request',step,maxSteps});
       try{response=await fetchImpl(url,{method:'POST',headers,body:JSON.stringify(body),signal});}
@@ -121,7 +187,17 @@ const AiClient=(()=>{
         throw new AiError(0,`could not reach ${new URL(url).host}: ${e.message}`);
       }
       if(!response.ok)throw await failure(response);
-      const parsed=adapter.parse(await response.json());
+      let parsed;
+      if(onText&&/text\/event-stream/.test(response.headers.get('content-type')||'')){
+        const acc=adapter.stream.start();
+        try{await readEvents(response,json=>adapter.stream.feed(acc,json,onText));}
+        catch(e){
+          if(signal&&signal.aborted)return{stopped:'aborted',steps:step-1};
+          if(e instanceof AiError)throw e;
+          throw new AiError(0,`the answer was cut off: ${e.message}`);
+        }
+        parsed=adapter.stream.finish(acc);
+      }else parsed=adapter.parse(await response.json());
       onStatus({phase:'response',step,maxSteps});
       transcript.push({role:'assistant',text:parsed.text,calls:parsed.calls,raw:parsed.raw});
       if(parsed.text)onEvent({type:'text',text:parsed.text});
