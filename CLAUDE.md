@@ -174,6 +174,7 @@ Todo lo que se puede tocar en la escena es una entidad de un *kind* registrado c
 
 ## Convenciones
 
+- La versión se muestra en la pantalla de carga y en la barra superior (`class="ver"` en `editor-3d.html`): al subir la versión hay que cambiarla también ahí, además de `package.json`; `test/sizes.test.mjs` lo comprueba.
 - Medidas en metros. En la UI se muestran con coma decimal (`f2()`).
 - No introducir build tooling sin pedirlo: los HTML son autocontenidos y se abren directo o con un servidor estático. El único `package.json` es para las funciones de `api/`; el editor sigue sin build y compartir solo funciona en el sitio publicado.
 - El usuario prefiere modelos parametrizados y autoajustables sobre salidas estáticas, y respuestas directas que no reabran decisiones ya tomadas.

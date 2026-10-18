@@ -2,6 +2,9 @@
 
 All notable changes to Blueprint Sketch. Versions follow [Semantic Versioning](https://semver.org).
 
+## 0.22.1 — 2026-10-18
+- The version number shows on the loading screen and in the top bar.
+
 ## 0.22.0 — 2026-10-18
 - The photorealistic look is more realistic: soft shadows where walls meet the floor, in corners and under furniture, smoother edges, and windows that reflect the sky and let you see through.
 - Phones and tablets keep the lighter rendering.
