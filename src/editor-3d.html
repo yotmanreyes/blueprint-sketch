@@ -218,6 +218,8 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 .plans{display:grid;gap:6px}
 .plan{display:grid;grid-template-columns:1fr auto auto auto;gap:4px;align-items:stretch}
 .plan .open{display:flex;gap:8px;align-items:center;text-align:left;padding:5px;border:1px solid var(--line);background:var(--panel2);border-radius:3px;cursor:pointer;min-width:0}
+#planlist .plan{grid-template-columns:1fr 1fr auto}
+#planlist .plan .open{grid-column:1/-1}
 .plan.on .open{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
 .plan img,.plan .ph{width:64px;height:40px;object-fit:cover;border-radius:2px;background:#0b1620;flex:none}
 .plan .open span{display:grid;min-width:0}
