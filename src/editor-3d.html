@@ -312,7 +312,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 }
 </style>
 
-<div id="boot" role="status" aria-live="polite"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#232628"/><path d="M14 14h36v36H14z" fill="none" stroke="#d08a3c" stroke-width="5"/><path d="M14 34h22v16M36 34V14" fill="none" stroke="#d08a3c" stroke-width="4"/></svg><b>Blueprint Sketch</b><small class="ver">v0.22.1</small><div class="bar"><i></i></div><p id="bootMsg">Cargando el editor…</p></div>
+<div id="boot" role="status" aria-live="polite"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#232628"/><path d="M14 14h36v36H14z" fill="none" stroke="#d08a3c" stroke-width="5"/><path d="M14 34h22v16M36 34V14" fill="none" stroke="#d08a3c" stroke-width="4"/></svg><b>Blueprint Sketch</b><small class="ver">v0.22.2</small><div class="bar"><i></i></div><p id="bootMsg">Cargando el editor…</p></div>
 <div id="snack" role="status" aria-live="polite" hidden></div>
 <div class="wrap">
   <div id="view">
@@ -333,7 +333,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
   </div>
 
   <header class="topbar">
-    <div class="brand"><h1>Blueprint Sketch <span class="ver" id="appVersion">v0.22.1</span></h1><p class="hint" id="planTitle"></p><p class="hint" id="shareBadge" hidden></p></div>
+    <div class="brand"><h1>Blueprint Sketch <span class="ver" id="appVersion">v0.22.2</span></h1><p class="hint" id="planTitle"></p><p class="hint" id="shareBadge" hidden></p></div>
     <div class="seg" id="modes" role="group" aria-label="Modo">
       <button data-v="navigate" aria-pressed="false" title="Navegar: solo mueve la cámara (1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg><span class="lbl">Navegar</span><kbd>1</kbd></button>
       <button data-v="build" aria-pressed="true" title="Construir: selecciona, mueve y dibuja (2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 20V9l7-5 7 5v11M10 20v-6h4v6"/></svg><span class="lbl">Construir</span><kbd>2</kbd></button>
@@ -1792,6 +1792,8 @@ function persistAi(){
 }
 const aiEnv={get state(){return state;},set state(next){state=normalizeState(next);syncCustomLib();},blank:blankState,example:defaultState};
 const aiSystem=()=>`${Agent.GUIDE}
+
+${Agent.SCOPE}
 
 You are inside the editor: the person watches the plan change while you work. Keep your messages short and say what you did when you finish. Reply in Spanish unless they write in another language. The open level is "${Levels.at(state,state.level).name}".`;
 function applyAgentChange(){

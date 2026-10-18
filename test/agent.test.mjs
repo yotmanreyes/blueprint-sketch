@@ -155,3 +155,9 @@ test('the server keeps a known ceiling finish and rejects an unknown one', () =>
   floor.c = 'oro';
   assert.throws(() => cleanState(JSON.parse(JSON.stringify(env.state))), /ceiling/);
 });
+
+test('the editor assistant has a scope rule that keeps it on the project', () => {
+  assert.match(Agent.SCOPE, /only help with this project/);
+  assert.match(Agent.SCOPE, /decline/);
+  assert.ok(!Agent.GUIDE.includes('only help with this project'));
+});
