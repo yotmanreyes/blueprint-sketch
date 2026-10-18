@@ -647,7 +647,9 @@ function showToast(msg){$('toast').textContent=msg;setTimeout(()=>$('toast').tex
 /* ================= escena ================= */
 const view=$('view');
 const renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const lowPower=matchMedia('(max-width:900px),(pointer:coarse)');
+const pixelRatio=()=>Math.min(devicePixelRatio,lowPower.matches?1.5:2);
+renderer.setPixelRatio(pixelRatio());
 renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 view.prepend(renderer.domElement);
@@ -1490,7 +1492,7 @@ function applyLook(){
   renderer.toneMappingExposure=photoreal?1.05:sketch?1:1.15;
   hemi.intensity=photoreal?.15:sketch?1.1:.45;hemi.color.set(sketch?0xffffff:0xfff1df);hemi.groundColor.set(sketch?0xb9b8b4:0x3a3836);
   sun.color.set(photoreal?0xfff0dc:sketch?0xffffff:0xdfeaff);sun.intensity=photoreal?2.4:sketch?.9:1.3;
-  const size=photoreal?4096:2048;
+  const size=Math.min(photoreal&&!lowPower.matches?4096:2048,renderer.capabilities.maxTextureSize);
   if(sun.shadow.mapSize.x!==size){sun.shadow.mapSize.set(size,size);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
   camera.near=photoreal?.1:.05;camera.far=photoreal?150:60;camera.updateProjectionMatrix();
   M.struct.color.copy(lin(photoreal?'#d8d4cc':sketch?'#f4f4f2':'#3a3c3f'));M.struct.roughness=photoreal?.9:1;
@@ -2621,8 +2623,9 @@ function renderShared(){
 }
 
 /* ================= arranque ================= */
-function resize(){const r=view.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();need=true;}
+function resize(){const r=view.getBoundingClientRect();renderer.setPixelRatio(pixelRatio());renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();need=true;}
 new ResizeObserver(resize).observe(view);
+lowPower.addEventListener('change',()=>{applyLook();resize();});
 applyMetalWood();buildGrid();buildStruct();buildItems();renderLevels();renderStyle();
 try{const saved=localStorage.getItem('blueprint-sketch-look');if(saved==='photo'||saved==='sketch')setLook(saved);}catch(e){}renderPlanTitle();resize();setCam('planta');syncModeUI();renderEmpty();
 if(REMOTE_ID)bootRemote(REMOTE_ID);
