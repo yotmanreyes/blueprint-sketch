@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1c1e20">
+<title>Asistente · Blueprint Sketch</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="assistant.css">
+<style>
+:root{--bg:#141516;--panel:#1c1e20;--panel2:#232628;--ink:#ece8e1;--muted:#9b968d;--line:#34373a;--accent:#d08a3c;--display:"Archivo",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font-family:var(--display)}
+button{font:inherit;color:var(--ink)}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:.95rem;flex:1}
+.link{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)}
+.link i{width:8px;height:8px;border-radius:50%;background:#6fcf97}
+.link.off i{background:#e0786b}
+.btn{font-size:.78rem;padding:6px 11px;border:1px solid var(--line);background:var(--panel2);border-radius:6px;cursor:pointer}
+.btn.on{background:var(--accent);border-color:var(--accent);color:#1a1209}
+.btn:disabled{opacity:.45;cursor:default}
+main{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;padding:12px 14px}
+.aichat{flex:1;max-height:none;min-height:0}
+.note{font-size:.8rem;color:var(--muted);line-height:1.45;margin:0}
+textarea{width:100%;resize:none;font:inherit;font-size:.9rem;padding:9px;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px}
+form .foot{display:flex;gap:6px;margin-top:6px}
+#lost{display:none;padding:10px 12px;border:1px solid #c0392b;border-radius:10px;background:rgba(192,57,43,.15);font-size:.8rem}
+.off~main #lost,body.off #lost{display:block}
+</style>
+<header>
+  <h1>Asistente</h1>
+  <span class="link" id="link"><i></i><span id="linkText">Conectando con el editor…</span></span>
+  <button class="btn" id="aiNew" type="button">Nueva conversación</button>
+</header>
+<main>
+  <div id="lost">No hay un editor conectado. Esta ventana se abre desde la pestaña <b>Asistente</b> del editor y le pasa tus mensajes; vuelve a abrirla desde ahí.</div>
+  <div class="aichat" id="aiLog" aria-live="polite"></div>
+  <div class="aichips" id="chips"></div>
+  <form id="aiForm"><textarea id="aiInput" rows="3" placeholder="Pídele algo al asistente… (Ctrl/Cmd+Enter envía)" aria-label="Mensaje para el asistente"></textarea>
+    <div class="foot"><button class="btn on" id="aiSend" type="submit">Enviar</button><button class="btn" id="aiStop" type="button" hidden>Detener</button></div></form>
+  <p class="note" id="keyNote" hidden>Falta la clave del proveedor. Se escribe en el editor, en «Proveedor y clave»; esta ventana nunca la ve.</p>
+</main>
+<script src="markdown.js"></script>
+<script src="assistant-ui.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const CHIPS=['Dibuja una casa de dos habitaciones, baño, sala y cocina','Amuebla las habitaciones que están vacías','Revisa el plano y corrige los problemas','¿Cuántos metros cuadrados y qué cantidades tiene el plano?'];
+const editor=window.opener;
+let view={log:[],busy:false,status:null,ready:true,readOnly:false},lastHeard=0;
+const post=message=>{if(editor&&!editor.closed)editor.postMessage({app:'bs-ai',...message},location.origin);};
+function connected(){return Boolean(editor)&&!editor.closed&&Date.now()-lastHeard<6000;}
+function draw(){
+  AssistantUi.render($('aiLog'),view,act=>post({t:'act',act}));
+  drawLink();
+}
+function drawLink(){
+  $('aiSend').disabled=view.busy||!connected()||view.readOnly;$('aiStop').hidden=!view.busy;$('aiInput').disabled=view.busy;
+  $('keyNote').hidden=view.ready!==false;
+  const on=connected();
+  $('link').classList.toggle('off',!on);$('linkText').textContent=on?'Conectado al editor':'Sin conexión con el editor';
+  document.body.classList.toggle('off',!on);
+  document.title=(view.busy?'⏳ ':'')+'Asistente · Blueprint Sketch';
+}
+addEventListener('message',e=>{
+  const m=e.data;
+  if(e.origin!==location.origin||e.source!==editor||!m||m.app!=='bs-ai'||m.t!=='state')return;
+  view=m.view;lastHeard=Date.now();draw();
+});
+setInterval(()=>{post({t:'hello'});drawLink();},1500);
+setInterval(()=>{if(view.busy)AssistantUi.tick($('aiLog'));},500);
+$('chips').innerHTML=CHIPS.map(t=>`<button type="button" data-q="${Markdown.escape(t)}">${Markdown.escape(t)}</button>`).join('');
+$('chips').onclick=e=>{const b=e.target.closest('button[data-q]');if(b&&connected())post({t:'send',text:b.dataset.q});};
+$('aiForm').onsubmit=e=>{e.preventDefault();const text=$('aiInput').value.trim();if(text&&connected()){post({t:'send',text});$('aiInput').value='';}};
+$('aiInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();$('aiForm').requestSubmit();}});
+$('aiStop').onclick=()=>post({t:'stop'});
+$('aiNew').onclick=()=>post({t:'new'});
+post({t:'hello'});draw();
+</script>
+</html>

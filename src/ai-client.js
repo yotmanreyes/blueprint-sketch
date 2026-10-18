@@ -104,7 +104,7 @@ const AiClient=(()=>{
   const clip=text=>text.length>MAX_RESULT_CHARS?text.slice(0,MAX_RESULT_CHARS)+'… (cut)':text;
 
   // one conversation turn: the model may call tools several times before it answers
-  async function run({provider,apiKey,model,baseUrl,system,tools,transcript,execute,onEvent=()=>{},signal,maxSteps=MAX_STEPS,fetchImpl=globalThis.fetch}){
+  async function run({provider,apiKey,model,baseUrl,system,tools,transcript,execute,onEvent=()=>{},onStatus=()=>{},signal,maxSteps=MAX_STEPS,fetchImpl=globalThis.fetch}){
     const adapter=ADAPTERS[provider],info=PROVIDERS[provider];
     if(!adapter)throw new AiError(0,`unknown provider "${provider}"`);
     if(!model)throw new AiError(0,'choose a model');
@@ -114,6 +114,7 @@ const AiClient=(()=>{
       if(signal&&signal.aborted)return{stopped:'aborted',steps:step-1};
       const{url,headers,body}=adapter.request({system,tools,transcript,model,apiKey,baseUrl:base});
       let response;
+      onStatus({phase:'request',step,maxSteps});
       try{response=await fetchImpl(url,{method:'POST',headers,body:JSON.stringify(body),signal});}
       catch(e){
         if(signal&&signal.aborted)return{stopped:'aborted',steps:step-1};
@@ -121,6 +122,7 @@ const AiClient=(()=>{
       }
       if(!response.ok)throw await failure(response);
       const parsed=adapter.parse(await response.json());
+      onStatus({phase:'response',step,maxSteps});
       transcript.push({role:'assistant',text:parsed.text,calls:parsed.calls,raw:parsed.raw});
       if(parsed.text)onEvent({type:'text',text:parsed.text});
       if(!parsed.calls.length)return{stopped:'done',steps:step};
@@ -137,6 +139,6 @@ const AiClient=(()=>{
     return{stopped:'max-steps',steps:maxSteps};
   }
 
-  return{PROVIDERS,AiError,run,adapters:ADAPTERS,geminiSchema};
+  return{PROVIDERS,AiError,MAX_STEPS,run,adapters:ADAPTERS,geminiSchema};
 })();
 if(typeof module!=='undefined')module.exports=AiClient;

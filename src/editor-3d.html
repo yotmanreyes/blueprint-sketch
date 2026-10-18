@@ -13,6 +13,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assistant.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap">
 <style>
 /* Layout: visor 3D grande a la izquierda, panel con pestañas a la derecha (abajo en móvil). Estética única oscura. */
@@ -188,16 +189,7 @@ aside .pane:not(:last-child){flex:1}
 .readonly #tools{display:none!important}
 .readonly #verChip,.readonly #levels .edit,.readonly #undoBtn,.readonly #redoBtn,.readonly aside .pane:last-child,.readonly #modes button:not([data-v="navigate"]),.readonly #tools,.readonly #tabs button:not([data-t="planos"]):not([data-t="cantidades"]),.readonly #selbar,.readonly #empty{display:none!important}
 #levels button.edit{border-style:dashed}
-.aichat{display:grid;gap:8px;align-content:start;min-height:160px;max-height:46vh;overflow:auto;padding:2px}
-.aimsg{padding:8px 10px;border-radius:10px;font-size:.82rem;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
-.aimsg.user{background:var(--accent);color:#1a1209;justify-self:end;max-width:88%}
-.aimsg.assistant{background:var(--panel2);border:1px solid var(--line);max-width:94%}
-.aimsg.step{font-family:var(--mono);font-size:.68rem;color:var(--muted);padding:2px 6px;border-left:2px solid var(--line);border-radius:0}
-.aimsg.step.fail{color:#e0786b;border-left-color:#e0786b}
-.aimsg.error{background:rgba(192,57,43,.18);border:1px solid #c0392b}
-.aichips{display:flex;flex-wrap:wrap;gap:6px}
-.aichips button{padding:5px 10px;font-size:.72rem;border:1px solid var(--line);background:var(--panel2);border-radius:99px;cursor:pointer;text-align:left}
-.aichips button:hover{border-color:var(--accent)}
+.aihead{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .aiconfig{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--panel2)}
 .aiconfig summary{cursor:pointer;font-size:.8rem;font-weight:600}
 .aiconfig label{display:grid;gap:3px;font-size:.72rem;color:var(--muted);margin-top:8px}
@@ -411,6 +403,8 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 <script src="templates.js"></script>
 <script src="agent-tools.js"></script>
 <script src="ai-client.js"></script>
+<script src="markdown.js"></script>
+<script src="assistant-ui.js"></script>
 <script src="plan-store.js"></script>
 <script src="sharing.js"></script>
 <script src="history.js"></script>
@@ -1751,7 +1745,7 @@ $('resetYes').onclick=()=>{state=defaultState();engine.select(null);save();apply
 const AI_SETTINGS_KEY='blueprint-sketch-ai',AI_KEYS_KEY='blueprint-sketch-ai-keys';
 const aiRead=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))||fallback;}catch(e){return fallback;}};
 const aiWrite=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch(e){}};
-const ai={settings:{provider:'anthropic',models:{},bases:{},remember:false,...aiRead(AI_SETTINGS_KEY,{})},keys:{},busy:false,controller:null,transcript:[],log:[],draft:''};
+const ai={settings:{provider:'anthropic',models:{},bases:{},remember:false,...aiRead(AI_SETTINGS_KEY,{})},keys:{},busy:false,controller:null,status:null,transcript:[],log:[],draft:''};
 if(ai.settings.remember)ai.keys=aiRead(AI_KEYS_KEY,{});
 function persistAi(){
   aiWrite(AI_SETTINGS_KEY,ai.settings);
@@ -1773,17 +1767,41 @@ function aiExplain(error){
   if(error.status===404)return`El proveedor no encontró el modelo o la dirección (${error.message}). Revisa el nombre del modelo.`;
   return error.message;
 }
-const aiStepLabel=(name,args)=>{const text=JSON.stringify(args);return`${name}${text&&text!=='{}'?' '+(text.length>90?text.slice(0,90)+'…':text):''}`;};
+const aiReady=()=>Boolean(ai.keys[ai.settings.provider])||ai.settings.provider==='compatible';
+const aiView=()=>({log:ai.log,busy:ai.busy,status:ai.status,ready:aiReady(),readOnly:isReadOnly()});
+let aiPop=null;
+function aiPush(){if(aiPop&&!aiPop.closed)aiPop.postMessage({app:'bs-ai',t:'state',view:aiView()},location.origin);}
+function aiAct(act){
+  if(act==='undo'){
+    if(!$('undoBtn').disabled)$('undoBtn').click();
+    const done=[...ai.log].reverse().find(m=>m.kind==='done'&&m.changed);if(done)done.undone=true;
+    renderAiLog();
+  }else if(act==='retry'){
+    const at=ai.log.map(m=>m.kind).lastIndexOf('user');
+    if(at<0)return;
+    const text=ai.log[at].text;ai.log.splice(at);aiSend(text);
+  }
+}
 function renderAiLog(){
-  const box=$('aiLog');if(!box)return;
-  box.innerHTML=ai.log.length?ai.log.map(m=>`<div class="aimsg ${m.kind}${m.failed?' fail':''}">${m.kind==='step'?(m.done?(m.failed?'✗ ':'✓ '):'… ')+esc(m.text):esc(m.text)}</div>`).join(''):
-    '<p class="note">Cuéntale qué quieres construir o cambiar. Trabaja con las mismas herramientas que tú: habitaciones, muros, puertas, escaleras, niveles, muebles en tamaños estándar y capas. Todo lo que haga se puede deshacer de una vez con Ctrl/Cmd+Z.</p>';
-  box.scrollTop=box.scrollHeight;
+  const box=$('aiLog');if(box)AssistantUi.render(box,aiView(),aiAct);
+  aiPush();
 }
 function syncAiButtons(){
   const send=$('aiSend');if(!send)return;
   send.disabled=ai.busy;$('aiStop').hidden=!ai.busy;$('aiInput').disabled=ai.busy;
 }
+setInterval(()=>{const box=$('aiLog');if(box&&ai.busy)AssistantUi.tick(box);},500);
+function aiNewConversation(){if(ai.busy)return;ai.transcript=[];ai.log=[];AssistantUi.reset();renderAiLog();}
+addEventListener('message',e=>{
+  const m=e.data;
+  if(e.origin!==location.origin||!m||m.app!=='bs-ai'||!e.source||e.source.opener!==window)return;
+  aiPop=e.source;
+  if(m.t==='hello')aiPush();
+  else if(m.t==='send')aiSend(String(m.text||''));
+  else if(m.t==='stop'){if(ai.controller)ai.controller.abort();}
+  else if(m.t==='new')aiNewConversation();
+  else if(m.t==='act')aiAct(String(m.act));
+});
 async function aiSend(text){
   text=text.trim();
   if(!text||ai.busy||isReadOnly())return;
@@ -1792,10 +1810,11 @@ async function aiSend(text){
   const modeBefore=engine.mode;
   if(!planIsBlank())addVersion(JSON.parse(JSON.stringify(state)),'auto',`Antes del asistente: ${text.slice(0,32)}`);
   ai.busy=true;ai.draft='';ai.controller=new AbortController();engine.setLocked(true);
+  ai.status={startedAt:Date.now(),phase:'send',step:0,maxSteps:AiClient.MAX_STEPS,tool:null};
   renderAiLog();syncAiButtons();
-  let changed=false;
+  let changed=false,steps=0,result=null;
   try{
-    const result=await AiClient.run({provider:s.provider,apiKey:ai.keys[s.provider]||'',model:s.models[s.provider]||info.model,baseUrl:s.bases[s.provider]||info.base,
+    result=await AiClient.run({provider:s.provider,apiKey:ai.keys[s.provider]||'',model:s.models[s.provider]||info.model,baseUrl:s.bases[s.provider]||info.base,
       system:aiSystem(),tools:Agent.definitions(),transcript:ai.transcript,signal:ai.controller.signal,
       execute:async(name,args)=>{
         try{
@@ -1804,18 +1823,21 @@ async function aiSend(text){
           return out;
         }catch(e){return{ok:false,error:`unexpected error: ${e.message}`};}
       },
+      onStatus:status=>{Object.assign(ai.status,{phase:status.phase,step:status.step,maxSteps:status.maxSteps});renderAiLog();},
       onEvent:e=>{
         if(e.type==='text')ai.log.push({kind:'assistant',text:e.text});
-        else if(e.type==='call')ai.log.push({kind:'step',text:aiStepLabel(e.name,e.args)});
-        else{const step=[...ai.log].reverse().find(m=>m.kind==='step'&&!m.done);if(step){step.done=true;step.failed=!e.ok;if(!e.ok)step.text+=` → ${e.summary}`;}}
+        else if(e.type==='call'){steps++;ai.log.push({kind:'step',name:e.name,args:e.args,done:false});Object.assign(ai.status,{phase:'tool',tool:{name:e.name,args:e.args}});}
+        else{const step=[...ai.log].reverse().find(m=>m.kind==='step'&&!m.done);if(step){step.done=true;step.failed=!e.ok;if(!e.ok)step.error=e.summary;}}
         renderAiLog();
       }});
     if(result.stopped==='max-steps')ai.log.push({kind:'error',text:'El asistente llegó al límite de pasos de este mensaje. Escribe «sigue» para que continúe.'});
+    ai.log.push({kind:'done',steps,ms:Date.now()-ai.status.startedAt,changed,stopped:result.stopped==='aborted'});
   }catch(e){
     ai.log.push({kind:'error',text:aiExplain(e)});
     if(ai.transcript.at(-1)&&ai.transcript.at(-1).role==='user')ai.transcript.pop();
   }finally{
-    ai.busy=false;ai.controller=null;engine.setLocked(isReadOnly());
+    ai.log.filter(m=>m.kind==='step'&&!m.done).forEach(m=>{m.done=true;m.failed=true;m.error='interrumpido';});
+    ai.busy=false;ai.controller=null;ai.status=null;engine.setLocked(isReadOnly());
     if(!isReadOnly())engine.setMode(modeBefore);
     if(changed){save();setCam(camKey);renderEmpty();if(tab!=='ia')renderTab();}
     renderAiLog();syncAiButtons();
@@ -1823,7 +1845,8 @@ async function aiSend(text){
 }
 function renderAsistente(){
   const s=ai.settings,info=AiClient.PROVIDERS[s.provider],model=s.models[s.provider]??info.model,base=s.bases[s.provider]??info.base;
-  $('p-ia').innerHTML=`<details class="aiconfig" ${ai.keys[s.provider]||s.provider==='compatible'?'':'open'}><summary>Proveedor y clave</summary>
+  $('p-ia').innerHTML=`<div class="aihead"><b>Asistente</b><button class="btn" id="aiPopBtn" type="button" title="Abrir el asistente en una ventana aparte, para verlo junto al plano">Abrir en otra ventana ↗</button></div>
+    <details class="aiconfig" ${ai.keys[s.provider]||s.provider==='compatible'?'':'open'}><summary>Proveedor y clave</summary>
       <label>Proveedor<select id="aiProvider">${Object.entries(AiClient.PROVIDERS).map(([k,p])=>`<option value="${k}" ${k===s.provider?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label>
       <label>Modelo<input type="text" id="aiModel" value="${esc(model)}" placeholder="nombre del modelo" autocomplete="off"></label>
       ${info.needsBase?`<label>Dirección base<input type="text" id="aiBase" value="${esc(base)}" autocomplete="off"></label>`:''}
@@ -1846,7 +1869,11 @@ function renderAsistente(){
   $('aiInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();$('aiForm').requestSubmit();}});
   $('aiForm').onsubmit=e=>{e.preventDefault();aiSend($('aiInput').value);$('aiInput').value='';};
   $('aiStop').onclick=()=>{if(ai.controller)ai.controller.abort();};
-  $('aiNew').onclick=()=>{if(ai.busy)return;ai.transcript=[];ai.log=[];renderAiLog();};
+  $('aiNew').onclick=aiNewConversation;
+  $('aiPopBtn').onclick=()=>{
+    const popup=window.open('assistant.html','bs-assistant','popup=yes,width=460,height=760');
+    if(popup){aiPop=popup;$('toast').textContent='';popup.focus();setTimeout(aiPush,700);}else $('toast').textContent='El navegador bloqueó la ventana; permite las ventanas emergentes de este sitio.';
+  };
   $('p-ia').querySelector('.aichips').onclick=e=>{const b=e.target.closest('button[data-q]');if(b)aiSend(b.dataset.q);};
 }
 
