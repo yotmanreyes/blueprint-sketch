@@ -42,9 +42,12 @@ form .foot{display:flex;gap:6px;margin-top:6px}
     <div class="foot"><button class="btn on" id="aiSend" type="submit">Enviar</button><button class="btn" id="aiStop" type="button" hidden>Detener</button></div></form>
   <p class="note" id="keyNote" hidden>Falta la clave del proveedor. Se escribe en el editor, en «Proveedor y clave»; esta ventana nunca la ve.</p>
 </main>
+<script src="i18n.js"></script>
+<script src="lang-en.js"></script>
 <script src="markdown.js"></script>
 <script src="assistant-ui.js"></script>
 <script>
+I18n.init();
 const $=id=>document.getElementById(id);
 const CHIPS=['Dibuja una casa de dos habitaciones, baño, sala y cocina','Amuebla las habitaciones que están vacías','Revisa el plano y corrige los problemas','¿Cuántos metros cuadrados y qué cantidades tiene el plano?'];
 const editor=window.opener;
@@ -61,7 +64,7 @@ function drawLink(){
   const on=connected();
   $('link').classList.toggle('off',!on);$('linkText').textContent=on?'Conectado al editor':'Sin conexión con el editor';
   document.body.classList.toggle('off',!on);
-  document.title=(view.busy?'⏳ ':'')+'Asistente · Blueprint Sketch';
+  document.title=(view.busy?'⏳ ':'')+I18n.t('Asistente · Blueprint Sketch');
 }
 addEventListener('message',e=>{
   const m=e.data;
@@ -70,7 +73,7 @@ addEventListener('message',e=>{
 });
 setInterval(()=>{post({t:'hello'});drawLink();},1500);
 setInterval(()=>{if(view.busy)AssistantUi.tick($('aiLog'));},500);
-$('chips').innerHTML=CHIPS.map(t=>`<button type="button" data-q="${Markdown.escape(t)}">${Markdown.escape(t)}</button>`).join('');
+$('chips').innerHTML=CHIPS.map(t=>I18n.t(t)).map(t=>`<button type="button" data-q="${Markdown.escape(t)}">${Markdown.escape(t)}</button>`).join('');
 $('chips').onclick=e=>{const b=e.target.closest('button[data-q]');if(b&&connected())post({t:'send',text:b.dataset.q});};
 $('aiForm').onsubmit=e=>{e.preventDefault();const text=$('aiInput').value.trim();if(text&&connected()){post({t:'send',text});$('aiInput').value='';}};
 $('aiInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();$('aiForm').requestSubmit();}});

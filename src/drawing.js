@@ -2,7 +2,8 @@
    for the PDF and DXF exporters. Layers: WALLS, OPENINGS, STAIRS, FURNITURE, ROOMS, DIMENSIONS. */
 const Drawing=(()=>{
   const EPS=1e-6,TICK=.08,DIM_GAP=.5,DIM_STEP=.45,TEXT_MM={room:2.8,area:2.2,item:1.6,dim:2.2};
-  const comma=n=>n.toFixed(2).replace('.',',');
+  const tr=text=>typeof I18n!=='undefined'?I18n.translate(text):text;
+  const comma=n=>n.toFixed(2).replace('.',typeof I18n!=='undefined'?I18n.decimal:',');
   const itemAngle=it=>it.r*90+(it.a||0);
 
   function wallRect(ax,c,t,a,b){
@@ -93,13 +94,13 @@ const Drawing=(()=>{
       place('item',it,from);
     }
 
-    for(const s of L.stairs||[]){const from=prims.length;stairPrims(s,prims,text,'SUBE');place('stair',s,from);}
-    for(const s of Levels.arriving(state,level))stairPrims(s,prims,text,'BAJA',false);
+    for(const s of L.stairs||[]){const from=prims.length;stairPrims(s,prims,text,tr('SUBE'));place('stair',s,from);}
+    for(const s of Levels.arriving(state,level))stairPrims(s,prims,text,tr('BAJA'),false);
 
     if(Layout.dimsVisible(L)){
       for(const f of L.floors){
         const from=prims.length;
-        if(f.name)text(f.x,f.z-.15,f.name.toUpperCase(),TEXT_MM.room,'ROOMS',true);
+        if(f.name)text(f.x,f.z-.15,tr(f.name).toUpperCase(),TEXT_MM.room,'ROOMS',true);
         text(f.x,f.z+.2,`${comma(f.w*f.d)} m²`,TEXT_MM.area,'ROOMS');
         place('floor',f,from);
       }

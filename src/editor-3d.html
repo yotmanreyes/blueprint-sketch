@@ -258,6 +258,8 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 #verMenu .info{display:grid;gap:2px;font-family:var(--mono);font-size:.68rem;color:var(--muted);padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:2px}
 #verMenu .info b{color:var(--ink);font-family:inherit;font-size:.78rem;font-weight:600}
 #verMenu .btn{width:100%;height:32px;justify-content:flex-start;font-size:.8rem}
+#verMenu .lang{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;color:var(--muted)}
+#verMenu .lang select{width:140px}
 #verMenu .row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 #snack{position:fixed;left:50%;bottom:48px;transform:translateX(-50%);z-index:40;display:flex;gap:10px;align-items:center;max-width:min(560px,92vw);padding:9px 12px;background:var(--panel);border:1px solid var(--accent);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.55);font-size:.8rem}
 #snack[hidden]{display:none}
@@ -312,7 +314,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 }
 </style>
 
-<div id="boot" role="status" aria-live="polite"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#232628"/><path d="M14 14h36v36H14z" fill="none" stroke="#d08a3c" stroke-width="5"/><path d="M14 34h22v16M36 34V14" fill="none" stroke="#d08a3c" stroke-width="4"/></svg><b>Blueprint Sketch</b><small class="ver">v0.22.4</small><div class="bar"><i></i></div><p id="bootMsg">Cargando el editor…</p></div>
+<div id="boot" role="status" aria-live="polite"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#232628"/><path d="M14 14h36v36H14z" fill="none" stroke="#d08a3c" stroke-width="5"/><path d="M14 34h22v16M36 34V14" fill="none" stroke="#d08a3c" stroke-width="4"/></svg><b>Blueprint Sketch</b><small class="ver">v0.23.0</small><div class="bar"><i></i></div><p id="bootMsg">Cargando el editor…</p></div>
 <div id="snack" role="status" aria-live="polite" hidden></div>
 <div class="wrap">
   <div id="view">
@@ -333,7 +335,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
   </div>
 
   <header class="topbar">
-    <div class="brand"><h1>Blueprint Sketch <span class="ver" id="appVersion">v0.22.4</span></h1><p class="hint" id="planTitle"></p><p class="hint" id="shareBadge" hidden></p></div>
+    <div class="brand"><h1>Blueprint Sketch <span class="ver" id="appVersion">v0.23.0</span></h1><p class="hint" id="planTitle"></p><p class="hint" id="shareBadge" hidden></p></div>
     <div class="seg" id="modes" role="group" aria-label="Modo">
       <button data-v="navigate" aria-pressed="false" title="Navegar: solo mueve la cámara (1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg><span class="lbl">Navegar</span><kbd>1</kbd></button>
       <button data-v="build" aria-pressed="true" title="Construir: selecciona, mueve y dibuja (2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 20V9l7-5 7 5v11M10 20v-6h4v6"/></svg><span class="lbl">Construir</span><kbd>2</kbd></button>
@@ -342,6 +344,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
     <div class="actions"><div class="verwrap"><button class="btn" id="verChip" aria-haspopup="menu" aria-expanded="false" title="Versión actual del plano: opciones para compartir, exportar y ver en pantalla completa"></button>
       <div id="verMenu" role="menu" hidden>
         <div class="info" id="verInfo"></div>
+        <label class="lang">Idioma<select id="langSel" aria-label="Idioma"></select></label>
         <button class="btn" role="menuitem" data-a="save">Guardar una versión ahora</button>
         <button class="btn" role="menuitem" data-a="history">Ver el historial de versiones</button>
         <button class="btn" role="menuitem" data-a="share">Compartir…</button>
@@ -411,6 +414,8 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 </div>
 
 <script type="module" src="three-bridge.js"></script>
+<script defer src="i18n.js"></script>
+<script defer src="lang-en.js"></script>
 <script defer src="engine.js"></script>
 <script defer src="icons.js"></script>
 <script defer src="layout.js"></script>
@@ -432,7 +437,7 @@ input[type=text]{width:100%;font:inherit;font-size:.85rem;padding:7px;background
 <script type="text/plain" id="app">
 const H=Levels.WALL_HEIGHT, SNAP=.05;
 const $=id=>document.getElementById(id);
-const f2=n=>(+n).toFixed(2).replace('.',',');
+const f2=n=>(+n).toFixed(2).replace('.',I18n.decimal);
 
 /* ================= texturas ================= */
 function rnd(s){return()=>{s=(s*16807)%2147483647;return s/2147483647}}
@@ -949,8 +954,8 @@ function addGhost(P){
 }
 const CLIMB_ARROWS=['↓','→','↑','←'];
 function addStairLabels(P){
-  for(const s of state.layout.stairs.filter(s=>Layout.isVisible(state.layout,'stair',s)))P.add(labelMesh(`${CLIMB_ARROWS[s.r]} SUBE`,s.x,s.z,.28,ROOM_INK,Levels.PITCH+.06));
-  for(const s of Levels.arriving(state,state.level))P.add(labelMesh(`${CLIMB_ARROWS[(s.r+2)%4]} BAJA`,s.x,s.z,.28,ROOM_INK,.03));
+  for(const s of state.layout.stairs.filter(s=>Layout.isVisible(state.layout,'stair',s)))P.add(labelMesh(`${CLIMB_ARROWS[s.r]} ${I18n.t('SUBE')}`,s.x,s.z,.28,ROOM_INK,Levels.PITCH+.06));
+  for(const s of Levels.arriving(state,state.level))P.add(labelMesh(`${CLIMB_ARROWS[(s.r+2)%4]} ${I18n.t('BAJA')}`,s.x,s.z,.28,ROOM_INK,.03));
 }
 function addPlanOverlay(g){
   const L=state.layout,F=Layout.frame(L),P=new THREE.Group();
@@ -969,7 +974,7 @@ function addPlanOverlay(g){
     else if(Layout.isH(w)&&Math.abs(Layout.fixed(w)-F.z0)<.01)dim(P,'x',F.z0-1.4,a,a+o.w,f2(o.w));
   }
   for(const f of L.floors){
-    const name=(f.name||'').toUpperCase(),size=`${f2(f.w)} × ${f2(f.d)} m`;
+    const name=I18n.translate(f.name||'').toUpperCase(),size=`${f2(f.w)} × ${f2(f.d)} m`;
     if(name)P.add(labelMesh(name,f.x,f.z-.15,Math.min(.3,f.w/(name.length*.62)),ROOM_INK));
     P.add(labelMesh(size,f.x,f.z+.2,Math.min(.2,f.w/(size.length*.62)),ROOM_INK));
   }
@@ -1841,7 +1846,7 @@ const aiSystem=()=>`${Agent.GUIDE}
 
 ${Agent.SCOPE}
 
-You are inside the editor: the person watches the plan change while you work. Keep your messages short and say what you did when you finish. Reply in Spanish unless they write in another language. The open level is "${Levels.at(state,state.level).name}".`;
+You are inside the editor: the person watches the plan change while you work. Keep your messages short and say what you did when you finish. Reply in ${I18n.languageName} unless they write in another language. The open level is "${Levels.at(state,state.level).name}".`;
 function applyAgentChange(){
   pruneItems();engine.select(null);selWall=null;selFloor=null;
   if(!camValid(camKey))camKey='planta';
@@ -1947,7 +1952,7 @@ function renderAsistente(){
       <div class="foot"><button class="btn" id="aiForget" type="button">Borrar la clave</button></div>
       <p class="note">La clave se queda en este navegador y solo se envía a ${esc(info.needsBase?'la dirección que indiques':info.name)}; este sitio nunca la ve. El proveedor recibe tus mensajes y los resultados de las herramientas (medidas y elementos del plano). Si no recuerdas la clave, se borra al cerrar la pestaña.</p></details>
     <div class="aichat" id="aiLog" aria-live="polite"></div>
-    <div class="aichips">${AI_SUGGESTIONS.map(t=>`<button type="button" data-q="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+    <div class="aichips">${AI_SUGGESTIONS.map(t=>I18n.t(t)).map(t=>`<button type="button" data-q="${esc(t)}">${esc(t)}</button>`).join('')}</div>
     <form id="aiForm"><textarea id="aiInput" rows="3" placeholder="Pídele algo al asistente… (Ctrl/Cmd+Enter envía)" aria-label="Mensaje para el asistente">${esc(ai.draft)}</textarea>
       <div class="foot" style="margin-top:6px"><button class="btn on" id="aiSend" type="submit">Enviar</button><button class="btn" id="aiStop" type="button" hidden>Detener</button><button class="btn" id="aiNew" type="button">Nueva conversación</button></div></form>`;
   renderAiLog();syncAiButtons();
@@ -2126,7 +2131,7 @@ addEventListener('keydown',e=>{
 });
 
 /* ================= cantidades y presupuesto ================= */
-const money=n=>n.toLocaleString('es',{minimumFractionDigits:2,maximumFractionDigits:2});
+const money=n=>n.toLocaleString(I18n.locale,{minimumFractionDigits:2,maximumFractionDigits:2});
 const quantityOptions=()=>({lib:LIB,floorNames:Object.fromEntries(Object.entries(FLOORS).map(([k,F])=>[k,F.n]))});
 
 function renderCantidades(){
@@ -2283,7 +2288,7 @@ $('emptyTemplates').onclick=startTemplates;
 let pendingShare=null;
 const ROLE_HELP={owner:'Propietario: edita, administra enlaces y puede eliminar el plano.',editor:'Editor: puede cambiar el plano.',viewer:'Lector: solo ve y navega, sin modificar nada.'};
 const SYNC_TEXT={pending:'cambios sin guardar',saving:'guardando…',saved:'guardado',conflict:'conflicto de versiones',offline:'sin conexión, reintentando',denied:'sin acceso',readonly:'solo lectura'};
-const fmtDate=t=>new Date(t).toLocaleString('es',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+const fmtDate=t=>new Date(t).toLocaleString(I18n.locale,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 
 function shareError(r){
   if(r.status===0)return 'No hay conexión con el servidor. Compartir solo funciona en el sitio publicado.';
@@ -2366,7 +2371,7 @@ function renderPlanos(){
 const KIND_NAMES={walls:['muro','muros'],openings:['vano','vanos'],floors:['piso','pisos'],stairs:['escalera','escaleras'],items:['pieza','piezas']};
 let versionFilter='all',versionRename=null,versionRestore=null,versionDelete=null;
 
-const fmtStamp=t=>new Date(t).toLocaleString('es',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+const fmtStamp=t=>new Date(t).toLocaleString(I18n.locale,{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
 function diffText(d){
   if(d.same)return 'Igual al plano actual';
   const kinds=(sign,counts)=>Object.entries(counts).filter(([,n])=>n).map(([k,n])=>`${sign}${n} ${KIND_NAMES[k][n===1?0:1]}`);
@@ -2506,6 +2511,12 @@ function notifyVersion(v){
   clearTimeout(snackTimer);snackTimer=setTimeout(()=>{$('snack').hidden=true;},8000);
 }
 $('snack').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.a==='see')openTab('versiones');$('snack').hidden=true;});
+(()=>{
+  const sel=$('langSel');
+  sel.innerHTML=Object.entries(I18n.NAMES).map(([code,name])=>`<option value="${code}" ${code===I18n.lang?'selected':''}>${name}</option>`).join('');
+  sel.onchange=()=>I18n.set(sel.value);
+  sel.onclick=e=>e.stopPropagation();
+})();
 $('verChip').onclick=e=>{e.stopPropagation();setVersionMenu($('verMenu').hidden);};
 document.addEventListener('click',e=>{if(!$('verMenu').hidden&&!e.target.closest('.verwrap'))setVersionMenu(false);});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('verMenu').hidden){setVersionMenu(false);$('verChip').focus();}});

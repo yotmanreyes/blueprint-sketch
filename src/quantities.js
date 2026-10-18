@@ -71,10 +71,11 @@ const Quantities=(()=>{
     };
   }
 
-  const num=n=>String(n).replace('.',',');
-  // semicolon separated with decimal commas and a BOM, so Excel in Spanish opens it correctly
+  const num=n=>String(n).replace('.',typeof I18n!=='undefined'?I18n.decimal:',');
+  // Spanish: semicolons and decimal commas; other languages: commas and decimal points. A BOM lets Excel read the accents
   function csv(q,{name='Plano',currency='$'}={}){
-    const row=cells=>cells.map(c=>/[;"\n]/.test(String(c))?`"${String(c).replace(/"/g,'""')}"`:c).join(';');
+    const sep=typeof I18n!=='undefined'&&I18n.decimal==='.'?',':';',tr=c=>typeof c==='string'&&typeof I18n!=='undefined'?I18n.translate(c):c;
+    const row=cells=>cells.map(tr).map(c=>new RegExp(`[${sep}"\n]`).test(String(c))?`"${String(c).replace(/"/g,'""')}"`:c).join(sep);
     const out=[row([`Cantidades y presupuesto · ${name}`]),'',row(['Habitación','Área (m²)','Perímetro (m)']),
       ...q.rooms.map(r=>row([r.name,num(r.area),num(r.perimeter)])),'',
       row(['Concepto','Cantidad','Unidad',`Precio unitario (${currency})`,`Subtotal (${currency})`])];

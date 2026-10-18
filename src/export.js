@@ -71,7 +71,7 @@ const DXF_COLORS={WALLS:7,OPENINGS:1,STAIRS:5,FURNITURE:8,ROOMS:3,DIMENSIONS:4};
     // title block
     const left=(MARGIN_MM+3)*MM_TO_PT,bottom=MARGIN_MM*MM_TO_PT;
     text(latin1(meta.name||'Plano'),left,bottom+TITLE_MM*MM_TO_PT-7*MM_TO_PT,5,{bold:true});
-    text(`Escala 1:${s.den}   ·   Hoja ${s.paper} ${s.orientation==='landscape'?'horizontal':'vertical'}   ·   Medidas en metros`,left,bottom+8*MM_TO_PT,2.8);
+    text([`Escala 1:${s.den}`,`Hoja ${s.paper} ${s.orientation==='landscape'?'horizontal':'vertical'}`,'Medidas en metros'].map(part=>typeof I18n!=='undefined'?I18n.translate(part):part).join('   ·   '),left,bottom+8*MM_TO_PT,2.8);
     text(`${meta.date||''}   ·   Blueprint Sketch`,left,bottom+3*MM_TO_PT,2.4,{gray:.4});
     ops.push('Q');
 

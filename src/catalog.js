@@ -8,7 +8,7 @@ const Catalog=(()=>{
     mesanoche:{n:'Mesa de noche',w:.45,d:.4,zone:'cuarto'}, escritorio:{n:'Escritorio',w:1.4,d:.6,zone:'cuarto'}, silla:{n:'Silla',w:.45,d:.45,zone:'cuarto'},
     estante:{n:'Estante abierto',w:.8,d:.35,zone:'cuarto'}, repisa:{n:'Repisa flotante',w:1.2,d:.25,elev:1.4,zone:'cuarto'},
     tv:{n:'Mueble TV + TV',w:1.6,d:.4,zone:'cuarto'}, sillon:{n:'Sillón',w:.85,d:.85,zone:'cuarto'}, tapete:{n:'Tapete',w:2.2,d:1.6,zone:'cuarto'},
-    planta:{n:'Planta',w:.45,d:.45,zone:'cuarto'}, lampara:{n:'Lámpara de pie',w:.4,d:.4,zone:'cuarto'}, espejo:{n:'Espejo de cuerpo',w:.7,d:.04,elev:.3,zone:'cuarto'},
+    planta:{n:'Planta decorativa',w:.45,d:.45,zone:'cuarto'}, lampara:{n:'Lámpara de pie',w:.4,d:.4,zone:'cuarto'}, espejo:{n:'Espejo de cuerpo',w:.7,d:.04,elev:.3,zone:'cuarto'},
     banco:{n:'Banco',w:1.1,d:.4,zone:'pasillo'},
     sofa:{n:'Sofá 3 puestos',w:2.1,d:.95,zone:''}, mesa:{n:'Mesa de comedor',w:1.6,d:.9,zone:''}, mesacafe:{n:'Mesa redonda',w:.8,d:.8,zone:''},
     cocina:{n:'Mesón de cocina',w:1.8,d:.6,zone:''}, nevera:{n:'Nevera',w:.7,d:.7,zone:''}, barra:{n:'Barra',w:2.4,d:.6,zone:''},
