@@ -104,6 +104,11 @@ Los pisos no se mueven arrastrándolos (así se puede girar la cámara sobre ell
 - El menú *Tamaño* de la barra de selección aplica `applySize`; los campos y las manijas se acotan con `sizeRange`. Un tamaño fuera de la lista se muestra como *Personalizado*. El servidor acepta escalas entre 0,02 y 50.
 - `test/sizes.test.mjs` comprueba que cada tamaño cabe en su rango y que el tamaño con que se dibuja cada pieza está en su lista.
 
+## Aspecto boceto
+
+- Tercer aspecto de la barra inferior (`sketch`, junto a *Plano* y *Fotorrealista*, mismo `setLook` y misma preferencia en `localStorage`): fondo y muros blancos, luz pareja y contornos negros. `edgeMat` pasa a negro opaco para los muros y `addInk` dibuja las aristas de cada pieza (solo mallas opacas, sin esferas ni vidrio). Cambiar de aspecto reconstruye muebles y niveles de fondo (`buildItems`, `buildOthers(true)`). No usa cielo ni niebla.
+- Acabados pensados para ese aspecto: pisos *Roble oscuro* y *Concreto pulido*, pared *Concreto visto* (`t: 'concreto'`, admite color) y **cielo por piso**: `floor.c` = `madera` (listones) o `concreto`; sin `c` el cielo es liso (`Catalog.CEILINGS`, `ceilMat`). Lo valida el servidor y lo cambia el agente con `set_floor_ceiling`. La pieza `persona` es una silueta de pie para dar escala.
+
 ## Aspecto fotorrealista
 
 - La barra inferior alterna *Plano* y *Fotorrealista* (`setLook`, preferencia en `localStorage`, no va en el plano). `applyLook` cambia, sin tocar los datos: fondo y entorno (un cielo generado con `PMREMGenerator`, uno brillante para el fondo y otro a la mitad para iluminar), niebla, luz del sol (cálida, 4096 px, más alta en `aimSun`), exposición, `near`/`far` de la cámara, el color de `M.struct` (yeso en vez de gris de plano), un suelo grande, y oculta rejilla, cotas y aristas.
