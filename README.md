@@ -206,3 +206,7 @@ Blueprint Sketch is for **schematic design**: quick layouts, conversations with 
 ## Contributing
 
 Issues and pull requests are welcome. Keep the editor build-free (plain scripts, no bundler), follow [Conventional Commits](https://www.conventionalcommits.org/), and run `npm test` before opening a pull request.
+
+## License
+
+[MIT](LICENSE). See the [changelog](CHANGELOG.md) for what changed in each version.
